@@ -97,6 +97,25 @@ class AdminController extends Controller
                     $clean['Nomor Kursi'] = '-';
                 }
 
+                // Automatic Auto-Seat Assignment: If participant is VALID but has no seat assigned
+                $statusClean = strtolower(trim($clean['Status Pembayaran'] ?? ''));
+                $currentSeat = trim($clean['Nomor Kursi'] ?? '-');
+
+                if (in_array($statusClean, ['valid', 'validkan']) && ($currentSeat === '' || $currentSeat === '-')) {
+                    $prodi = $clean['Program Studi'] ?? 'Umum';
+                    $newSeat = $this->generateNextSeatForProdi($prodi, $result);
+                    $clean['Nomor Kursi']    = $newSeat;
+                    $clean['Plotting Kursi'] = $newSeat;
+
+                    // Persist to local DB immediately
+                    if ($nim) {
+                        PaymentVerification::updateOrCreate(
+                            ['nim' => $nim],
+                            ['status_pembayaran' => 'valid', 'nomor_kursi' => $newSeat]
+                        );
+                    }
+                }
+
                 $result[] = $clean;
             }
 
@@ -241,7 +260,86 @@ class AdminController extends Controller
     }
 
     /**
+     * Dapatkan prefix kode bangku berdasarkan Program Studi.
+     * SI -> Sistem Informasi (SI-01, SI-02...)
+     * TI -> Teknik Informatika / Lainnya (TI-01, TI-02...)
+     */
+    private function getProdiPrefix(string $prodiName): string
+    {
+        $clean = strtolower(trim($prodiName));
+        if (str_contains($clean, 'sistem') || str_contains($clean, 'si')) {
+            return 'SI';
+        }
+        return 'TI';
+    }
+
+    /**
+     * Auto-Floating: Hitung nomor bangku berikutnya untuk SI (SI-01..) atau TI (TI-01..).
+     */
+    private function generateNextSeatForProdi(string $prodiName, array $pesertaList): string
+    {
+        $prefix = $this->getProdiPrefix($prodiName);
+        $maxNum = 0;
+
+        // Cek data lokal database
+        $dbSeats = PaymentVerification::whereNotNull('nomor_kursi')->pluck('nomor_kursi');
+        foreach ($dbSeats as $seat) {
+            $seatUpper = strtoupper(trim($seat));
+            if (str_starts_with($seatUpper, $prefix . '-')) {
+                $num = (int) str_replace($prefix . '-', '', $seatUpper);
+                if ($num > $maxNum) {
+                    $maxNum = $num;
+                }
+            }
+        }
+
+        // Cek data dari sheet
+        foreach ($pesertaList as $p) {
+            $seatUpper = strtoupper(trim($p['Nomor Kursi'] ?? ''));
+            if (str_starts_with($seatUpper, $prefix . '-')) {
+                $num = (int) str_replace($prefix . '-', '', $seatUpper);
+                if ($num > $maxNum) {
+                    $maxNum = $num;
+                }
+            }
+        }
+
+        $nextNum = $maxNum + 1;
+        return $prefix . '-' . str_pad($nextNum, 2, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Hapus / kosongkan alokasi nomor kursi peserta.
+     */
+    public function hapusKursi(Request $request)
+    {
+        $request->validate([
+            'nim' => 'required|string',
+        ]);
+
+        $nim = trim($request->nim);
+
+        PaymentVerification::where('nim', $nim)->update(['nomor_kursi' => null]);
+
+        try {
+            Http::timeout(10)
+                ->withoutVerifying()
+                ->patch("{$this->sheetdbUrl}/NIM/{$nim}", [
+                    'data' => [
+                        'Nomor Kursi'    => '-',
+                        'Plotting Kursi' => '-',
+                    ],
+                ]);
+        } catch (\Throwable $e) {}
+
+        $this->fetchFresh();
+
+        return back()->with('success', "Alokasi nomor kursi peserta NIM {$nim} berhasil dikosongkan.");
+    }
+
+    /**
      * Update status pembayaran peserta di database lokal & SheetDB.
+     * Sekaligus memicu Auto-Floating Bangku jika status berubah jadi 'valid'.
      */
     public function updatePembayaran(Request $request)
     {
@@ -259,31 +357,59 @@ class AdminController extends Controller
             $status = $rawStatus;
         }
 
-        PaymentVerification::updateOrCreate(
-            ['nim' => $nim],
-            ['status_pembayaran' => $status]
-        );
+        $pesertaList = $this->fetchAll();
+        $pesertaItem = null;
+        foreach ($pesertaList as $p) {
+            if (trim($p['NIM'] ?? '') === $nim) {
+                $pesertaItem = $p;
+                break;
+            }
+        }
+
+        $kursiAuto = null;
+        $prodi     = $pesertaItem['Program Studi'] ?? 'Umum';
+
+        // Auto-floating seat assignment when status becomes 'valid' and participant doesn't have a seat yet
+        $currentSeat = trim($pesertaItem['Nomor Kursi'] ?? '-');
+        if (in_array(strtolower($status), ['valid', 'validkan']) && ($currentSeat === '' || $currentSeat === '-')) {
+            $kursiAuto = $this->generateNextSeatForProdi($prodi, $pesertaList);
+        }
+
+        $updateData = ['status_pembayaran' => $status];
+        if ($kursiAuto) {
+            $updateData['nomor_kursi'] = $kursiAuto;
+        }
+
+        PaymentVerification::updateOrCreate(['nim' => $nim], $updateData);
 
         try {
+            $patchData = [
+                'Status Pembayaran'  => $status,
+                'Status Pembayaran ' => $status,
+            ];
+            if ($kursiAuto) {
+                $patchData['Nomor Kursi']    = $kursiAuto;
+                $patchData['Plotting Kursi'] = $kursiAuto;
+            }
+
             Http::timeout(10)
                 ->withoutVerifying()
                 ->patch("{$this->sheetdbUrl}/NIM/{$nim}", [
-                    'data' => [
-                        'Status Pembayaran'  => $status,
-                        'Status Pembayaran ' => $status,
-                    ],
+                    'data' => $patchData,
                 ]);
 
             $webAppUrl = env('APPS_SCRIPT_WEBAPP_URL');
             if ($webAppUrl) {
-                Http::timeout(5)->withoutVerifying()->post($webAppUrl, ['nim' => $nim, 'status' => $status]);
+                $payload = ['nim' => $nim, 'status' => $status];
+                if ($kursiAuto) $payload['nomor_kursi'] = $kursiAuto;
+                Http::timeout(5)->withoutVerifying()->post($webAppUrl, $payload);
             }
         } catch (\Throwable $e) {}
 
         $this->fetchFresh();
 
         $msg = in_array(strtolower($status), ['valid', 'validkan'])
-            ? "Pembayaran peserta NIM {$nim} berhasil disetujui ('valid')."
+            ? "Pembayaran peserta NIM {$nim} ({$prodi}) disetujui ('valid'). " . ($kursiAuto ? "🎯 Bangku otomatis teralokasi ke '{$kursiAuto}' (Blok {$prodi})!" : "")
             : "Status pembayaran peserta NIM {$nim} diubah menjadi '{$status}'.";
 
         return back()->with('success', $msg);
@@ -328,8 +454,8 @@ class AdminController extends Controller
      */
     public function autoPlotting(Request $request)
     {
-        $sortBy = $request->input('sort_by', 'prodi'); // 'prodi', 'nim', 'nama'
-        $mode   = $request->input('mode', 'unassigned'); // 'unassigned', 'reset_all'
+        $formatMode = $request->input('format', 'prodi_prefix'); // 'prodi_prefix' (TI-01) or 'grid' (A01)
+        $mode       = $request->input('mode', 'unassigned'); // 'unassigned' or 'reset_all'
 
         $pesertaList = $this->fetchAll();
 
@@ -347,60 +473,84 @@ class AdminController extends Controller
             return back()->with('error', 'Tidak ada peserta yang perlu di-plotting.');
         }
 
-        usort($targets, function ($a, $b) use ($sortBy) {
-            if ($sortBy === 'prodi') {
-                $pCompare = strcmp($a['Program Studi'] ?? '', $b['Program Studi'] ?? '');
-                if ($pCompare !== 0) return $pCompare;
-                return strcmp($a['Nama Lengkap'] ?? '', $b['Nama Lengkap'] ?? '');
-            } elseif ($sortBy === 'nim') {
-                return strcmp($a['NIM'] ?? '', $b['NIM'] ?? '');
-            } else {
-                return strcmp($a['Nama Lengkap'] ?? '', $b['Nama Lengkap'] ?? '');
-            }
-        });
-
-        $rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-        $cols = range(1, 12);
-        $availableSeats = [];
-
-        $existingSeats = [];
-        if ($mode !== 'reset_all') {
-            foreach ($pesertaList as $p) {
-                $k = trim($p['Nomor Kursi'] ?? '-');
-                if ($k !== '' && $k !== '-') {
-                    $existingSeats[$k] = true;
-                }
-            }
-        }
-
-        foreach ($rows as $r) {
-            foreach ($cols as $c) {
-                $seatCode = $r . str_pad($c, 2, '0', STR_PAD_LEFT);
-                if (!isset($existingSeats[$seatCode])) {
-                    $availableSeats[] = $seatCode;
-                }
-            }
-        }
-
         $count = 0;
-        foreach ($targets as $p) {
-            if (empty($availableSeats)) break;
 
-            $nim      = trim($p['NIM'] ?? '');
-            $seatCode = array_shift($availableSeats);
+        if ($formatMode === 'prodi_prefix') {
+            // Group by Prodi
+            $grouped = [];
+            foreach ($targets as $p) {
+                $pr = trim($p['Program Studi'] ?? 'Umum');
+                $grouped[$pr][] = $p;
+            }
 
-            if ($nim) {
-                PaymentVerification::updateOrCreate(
-                    ['nim' => $nim],
-                    ['nomor_kursi' => $seatCode]
-                );
-                $count++;
+            foreach ($grouped as $prodiName => $pList) {
+                foreach ($pList as $p) {
+                    $nim = trim($p['NIM'] ?? '');
+                    if (!$nim) continue;
+
+                    $currentList = $this->fetchAll();
+                    $seatCode = $this->generateNextSeatForProdi($prodiName, $currentList);
+
+                    PaymentVerification::updateOrCreate(
+                        ['nim' => $nim],
+                        ['nomor_kursi' => $seatCode]
+                    );
+
+                    try {
+                        Http::timeout(5)->withoutVerifying()->patch("{$this->sheetdbUrl}/NIM/{$nim}", [
+                            'data' => [
+                                'Nomor Kursi'    => $seatCode,
+                                'Plotting Kursi' => $seatCode,
+                            ],
+                        ]);
+                    } catch (\Throwable $e) {}
+
+                    $count++;
+                }
+            }
+        } else {
+            $rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+            $cols = range(1, 12);
+            $availableSeats = [];
+
+            $existingSeats = [];
+            if ($mode !== 'reset_all') {
+                foreach ($pesertaList as $p) {
+                    $k = trim($p['Nomor Kursi'] ?? '-');
+                    if ($k !== '' && $k !== '-') {
+                        $existingSeats[$k] = true;
+                    }
+                }
+            }
+
+            foreach ($rows as $r) {
+                foreach ($cols as $c) {
+                    $seatCode = $r . str_pad($c, 2, '0', STR_PAD_LEFT);
+                    if (!isset($existingSeats[$seatCode])) {
+                        $availableSeats[] = $seatCode;
+                    }
+                }
+            }
+
+            foreach ($targets as $p) {
+                if (empty($availableSeats)) break;
+
+                $nim      = trim($p['NIM'] ?? '');
+                $seatCode = array_shift($availableSeats);
+
+                if ($nim) {
+                    PaymentVerification::updateOrCreate(
+                        ['nim' => $nim],
+                        ['nomor_kursi' => $seatCode]
+                    );
+                    $count++;
+                }
             }
         }
 
         $this->fetchFresh();
 
-        return back()->with('success', "Berhasil mengalokasikan kursi otomatis untuk {$count} peserta!");
+        return back()->with('success', "⚡ Resepsionis Pinter: Berhasil mengalokasikan bangku otomatis untuk {$count} peserta!");
     }
 
     /**
@@ -428,17 +578,20 @@ class AdminController extends Controller
             $kursi = trim($p['Nomor Kursi'] ?? '-');
             if ($kursi !== '' && $kursi !== '-') {
                 $assigned[$kursi] = $p;
+                $assigned[strtoupper($kursi)] = $p;
+                $cleanCode = str_replace(['-', ' '], '', strtoupper($kursi));
+                $assigned[$cleanCode] = $p;
             } else {
                 $unassigned[] = $p;
             }
         }
 
-        // Generate grid rows A-H, columns 1-12
-        $rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-        $cols = range(1, 12);
+        // 10 Baris (a..j) x 15 Kolom per Sayap (150 SI + 150 TI/MIK = 300 Kursi Total)
+        $rows = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+        $cols = range(1, 15);
 
-        $totalCapacity = count($rows) * count($cols);
-        $totalAssigned = count($assigned);
+        $totalCapacity = 300;
+        $totalAssigned = count(array_filter($pesertaList, fn($p) => !empty($p['Nomor Kursi']) && $p['Nomor Kursi'] !== '-'));
         $totalHadir    = count(array_filter($pesertaList, fn($p) => !empty($p['Waktu Kehadiran'])));
 
         return view('admin.plotting', compact(

@@ -455,16 +455,48 @@
 
                     <input type="hidden" name="nim" id="editKursiNimInput" value="">
                     <div class="mb-2">
-                        <label class="form-label" style="font-size:12px;font-weight:600;">Nomor Kursi (misal: A01, B05)</label>
-                        <input type="text" name="nomor_kursi" id="editKursiValInput" class="form-control" placeholder="Contoh: A01" style="font-size:13px;" required uppercase>
+                        <label class="form-label" style="font-size:12px;font-weight:600;">Nomor Kursi (misal: SI-01, TI-01)</label>
+                        <input type="text" name="nomor_kursi" id="editKursiValInput" class="form-control" placeholder="Contoh: SI-01 atau TI-05" style="font-size:13px;" required uppercase>
                     </div>
                 </div>
-                <div class="modal-footer" style="border-top:none;padding:0 18px 18px;">
+                <div class="modal-footer d-flex flex-column gap-2" style="border-top:none;padding:0 18px 18px;">
                     <button type="submit" class="btn-primary-sm w-100 justify-content-center py-2">
                         <i class="bi bi-check-circle-fill me-1"></i> Simpan Nomor Kursi
                     </button>
+                    <button type="button" id="deleteKursiBtnInModal" class="btn btn-outline-danger w-100" style="border-radius:8px;font-size:12px;font-weight:600;padding:8px;" onclick="submitDeleteKursiFromPesertaModal()">
+                        <i class="bi bi-trash3-fill me-1"></i> Hapus / Kosongkan Kursi Ini
+                    </button>
                 </div>
             </form>
+            <form id="deleteKursiFormFromPeserta" action="{{ route('admin.peserta.kursi.hapus') }}" method="POST" style="display:none;">
+                @csrf
+                <input type="hidden" name="nim" id="deleteKursiFormNim">
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- ── Modal Konfirmasi Hapus Bangku (Pengganti Pop-up Browser Native) ── --}}
+<div class="modal fade" id="deleteSeatConfirmModal" tabindex="-1" aria-hidden="true" style="z-index: 1070;">
+    <div class="modal-dialog modal-dialog-centered modal-sm" style="max-width:360px;">
+        <div class="modal-content" style="border-radius:20px;border:none;box-shadow:0 20px 40px rgba(0,0,0,0.25);overflow:hidden;">
+            <div class="modal-body text-center" style="padding:28px 20px 16px;">
+                <div style="width:60px;height:60px;border-radius:50%;background:#FEE2E2;color:#EF4444;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:26px;">
+                    <i class="bi bi-trash3-fill"></i>
+                </div>
+                <h6 style="font-weight:700;font-size:16px;color:#111827;margin-bottom:6px;">Kosongkan Bangku Ini?</h6>
+                <div style="font-size:13px;color:#6B7280;margin-bottom:0;" id="deleteSeatModalMsg">
+                    Apakah Anda yakin ingin mengosongkan bangku peserta ini?
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top:none;padding:12px 20px 24px;display:flex;gap:10px;justify-content:center;">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal" style="flex:1;border-radius:10px;font-weight:600;font-size:13px;padding:10px;color:#4B5563;background:#F3F4F6;border:none;">
+                    Batal
+                </button>
+                <button type="button" onclick="executeDeleteSeatFromModal()" class="btn btn-danger" style="flex:1;border-radius:10px;font-weight:600;font-size:13px;padding:10px;">
+                    Ya, Hapus
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -548,8 +580,31 @@ function openEditKursiModal(nim, nama, kursi) {
     document.getElementById('editKursiNama').textContent = nama;
     document.getElementById('editKursiNim').textContent  = 'NIM: ' + nim;
     document.getElementById('editKursiNimInput').value  = nim;
-    document.getElementById('editKursiValInput').value  = kursi;
+    document.getElementById('editKursiValInput').value  = (kursi === '-' ? '' : kursi);
+
+    const delBtn = document.getElementById('deleteKursiBtnInModal');
+    if (delBtn) {
+        delBtn.style.display = (kursi && kursi !== '-') ? 'block' : 'none';
+    }
+
     new bootstrap.Modal(document.getElementById('editKursiModal')).show();
+}
+
+function submitDeleteKursiFromPesertaModal() {
+    const nim  = document.getElementById('editKursiNimInput').value;
+    const nama = document.getElementById('editKursiNama').textContent;
+    if (nim) {
+        document.getElementById('deleteSeatModalMsg').innerHTML = `Apakah Anda yakin ingin mengosongkan bangku untuk <strong>${nama}</strong> (NIM: ${nim})?`;
+        document.getElementById('deleteKursiFormNim').value = nim;
+        new bootstrap.Modal(document.getElementById('deleteSeatConfirmModal')).show();
+    }
+}
+
+function executeDeleteSeatFromModal() {
+    const modalEl = document.getElementById('deleteSeatConfirmModal');
+    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+    if (modalInstance) modalInstance.hide();
+    document.getElementById('deleteKursiFormFromPeserta').submit();
 }
 
 function showBukti(fileId, rawUrl, nama, judul, nim = '') {

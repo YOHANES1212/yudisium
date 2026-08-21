@@ -35,6 +35,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'panitia'])->group(f
     Route::post('/peserta/hadir',[AdminController::class, 'tandaiHadir'])->name('peserta.hadir');
     Route::post('/peserta/pembayaran', [AdminController::class, 'updatePembayaran'])->name('peserta.pembayaran');
     Route::post('/peserta/kursi', [AdminController::class, 'updateKursi'])->name('peserta.kursi');
+    Route::post('/peserta/kursi/hapus', [AdminController::class, 'hapusKursi'])->name('peserta.kursi.hapus');
     Route::get('/plotting',      [AdminController::class, 'plotting'])->name('plotting');
     Route::post('/plotting/auto', [AdminController::class, 'autoPlotting'])->name('plotting.auto');
     Route::post('/plotting/reset', [AdminController::class, 'resetPlotting'])->name('plotting.reset');
