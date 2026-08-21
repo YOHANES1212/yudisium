@@ -78,7 +78,7 @@
                 </a>
             @endif
 
-            <a href="{{ route('admin.export', request()->query()) }}" class="btn-outline-sm" style="margin-left:auto;">
+            <a href="{{ route('admin.export', request()->query()) }}" class="btn-outline-sm" style="margin-left:auto;" target="_blank" download onclick="notifyExport(event)">
                 <i class="bi bi-file-earmark-excel"></i> Export CSV
             </a>
         </form>

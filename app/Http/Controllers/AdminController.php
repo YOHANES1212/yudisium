@@ -704,6 +704,10 @@ class AdminController extends Controller
         $filename = 'peserta_yudisium_' . now()->format('Ymd_His') . '.csv';
 
         $callback = function () use ($data) {
+            if (ob_get_level()) {
+                @ob_end_clean();
+            }
+
             $handle = fopen('php://output', 'w');
             fputs($handle, "\xEF\xBB\xBF"); // BOM UTF-8 untuk Excel
 
@@ -739,7 +743,11 @@ class AdminController extends Controller
         };
 
         return response()->streamDownload($callback, $filename, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Cache-Control'       => 'must-revalidate, post-check=0, pre-check=0',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Expires'             => '0',
+            'Pragma'              => 'public',
         ]);
     }
 

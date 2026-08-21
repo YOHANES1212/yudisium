@@ -679,7 +679,8 @@
         <div class="nav-section-label">Laporan</div>
 
         <a href="{{ route('admin.export') }}"
-           class="nav-item-link {{ request()->routeIs('admin.export*') ? 'active' : '' }}">
+           class="nav-item-link {{ request()->routeIs('admin.export*') ? 'active' : '' }}"
+           target="_blank" download onclick="notifyExport(event)">
             <i class="bi bi-file-earmark-spreadsheet"></i>
             Export Data
         </a>
@@ -911,6 +912,14 @@
         } catch(e) {
             list.innerHTML = '<div class="text-center py-3 text-muted" style="font-size:13px;">Gagal memuat log terbaru</div>';
         }
+    }
+
+    function notifyExport(e) {
+        const toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#10B981;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 10px 25px rgba(0,0,0,0.2);';
+        toast.innerHTML = '<i class="bi bi-download me-2"></i> Mengunduh file CSV... Periksa folder Unduhan / Downloads HP atau Komputer Anda.';
+        document.body.appendChild(toast);
+        setTimeout(() => { toast.remove(); }, 5000);
     }
 </script>
 
