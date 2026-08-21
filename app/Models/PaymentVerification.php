@@ -12,5 +12,6 @@ class PaymentVerification extends Model
     protected $fillable = [
         'nim',
         'status_pembayaran',
+        'nomor_kursi',
     ];
 }

@@ -42,7 +42,7 @@
             <div class="search-input-wrap">
                 <i class="bi bi-search"></i>
                 <input type="text" name="search" class="search-input"
-                       placeholder="Cari nama / NIM / prodi..."
+                       placeholder="Cari nama / NIM / prodi / kursi..."
                        value="{{ request('search') }}">
             </div>
 
@@ -93,13 +93,11 @@
     @else
         <div style="overflow-x:auto;">
             @php
-                // Konversi Google Drive "open" link ke "preview" link — dideklarasikan sekali di sini
-                if (!function_exists('drivePreview')) {
-                    function drivePreview($url) {
-                        if (preg_match('/id=([\w-]+)/', $url, $m)) {
-                            return 'https://drive.google.com/file/d/' . $m[1] . '/preview';
-                        }
-                        return $url;
+                if (!function_exists('driveFileId')) {
+                    function driveFileId($url) {
+                        if (preg_match('/id=([\w-]+)/', $url, $m)) return $m[1];
+                        if (preg_match('/\/d\/([\w-]+)/', $url, $m)) return $m[1];
+                        return '';
                     }
                 }
             @endphp
@@ -111,12 +109,12 @@
                         <th>Email</th>
                         <th>Program Studi</th>
                         <th>No. HP (WA)</th>
-                        <th>Bank / Rek.</th>
+                        <th>Kursi</th>
                         <th>Pembayaran</th>
                         <th>Bukti</th>
                         <th>Status Hadir</th>
                         <th>Waktu Hadir</th>
-                        <th style="width:80px;">Aksi</th>
+                        <th style="width:90px;">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -151,9 +149,17 @@
                             {{ $p['No. Handphone (WA)'] ?? $p['No. Handphone (WA) '] ?? $p['No. HP (WA)'] ?? '-' }}
                         </td>
 
-                        <td style="font-size:12px;">
-                            <div style="font-weight:500;">{{ $p['Bank Asal'] ?? '-' }}</div>
-                            <div style="color:var(--color-gray-500);">{{ $p['Nomor Rekening'] ?? '-' }}</div>
+                        {{-- Nomor Kursi --}}
+                        <td>
+                            @php $kursi = $p['Nomor Kursi'] ?? '-'; @endphp
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <span class="badge {{ $kursi !== '-' ? 'bg-primary' : 'bg-light text-muted border' }}" style="font-size:12px;font-weight:600;padding:4px 8px;border-radius:6px;">
+                                    🪑 {{ $kursi }}
+                                </span>
+                                <button type="button" class="btn btn-sm p-0 text-primary" title="Atur / Edit Kursi" onclick="openEditKursiModal('{{ $p['NIM'] ?? '' }}', '{{ addslashes($namaPeserta) }}', '{{ $kursi !== '-' ? $kursi : '' }}')">
+                                    <i class="bi bi-pencil-square" style="font-size:13px;"></i>
+                                </button>
+                            </div>
                         </td>
 
                         <td>
@@ -232,13 +238,15 @@
                                 @php
                                     $buktiBayar = trim($p['Bukti Transfer'] ?? $p['Bukti Transfer '] ?? '');
                                     $fotoFormal = trim($p['Upload Foto (Formal)'] ?? $p['Upload Foto Formal'] ?? $p['Upload Foto (Formal) '] ?? '');
+                                    $idBukti = driveFileId($buktiBayar);
+                                    $idFoto  = driveFileId($fotoFormal);
                                 @endphp
 
                                 @if($buktiBayar)
                                     <button type="button"
                                             class="action-btn"
                                             title="Lihat Bukti Transfer"
-                                            onclick="showBukti('{{ drivePreview($buktiBayar) }}', '{{ addslashes($namaPeserta) }}', 'Bukti Transfer', '{{ $p['NIM'] ?? '' }}', '{{ addslashes($pay) }}')">
+                                            onclick="showBukti('{{ $idBukti }}', '{{ $buktiBayar }}', '{{ addslashes($namaPeserta) }}', 'Bukti Transfer', '{{ $p['NIM'] ?? '' }}')">
                                         <i class="bi bi-receipt"></i>
                                     </button>
                                 @endif
@@ -247,7 +255,7 @@
                                     <button type="button"
                                             class="action-btn"
                                             title="Lihat Foto Formal"
-                                            onclick="showBukti('{{ drivePreview($fotoFormal) }}', '{{ addslashes($namaPeserta) }}', 'Foto Formal', '{{ $p['NIM'] ?? '' }}', '{{ addslashes($pay) }}')">
+                                            onclick="showBukti('{{ $idFoto }}', '{{ $fotoFormal }}', '{{ addslashes($namaPeserta) }}', 'Foto Formal', '{{ $p['NIM'] ?? '' }}')">
                                         <i class="bi bi-person-badge"></i>
                                     </button>
                                 @endif
@@ -306,7 +314,6 @@
                 dari {{ $pagination['total'] }} peserta
             </div>
             <div class="pagination-wrap">
-                {{-- Prev --}}
                 @if($pagination['current_page'] <= 1)
                     <span class="page-btn disabled">
                         <i class="bi bi-chevron-left" style="font-size:11px;"></i>
@@ -318,7 +325,6 @@
                     </a>
                 @endif
 
-                {{-- Pages --}}
                 @for($pg = 1; $pg <= $pagination['last_page']; $pg++)
                     <a href="{{ request()->fullUrlWithQuery(['page' => $pg]) }}"
                        class="page-btn {{ $pagination['current_page'] === $pg ? 'active' : '' }}">
@@ -326,13 +332,12 @@
                     </a>
                 @endfor
 
-                {{-- Next --}}
                 @if($pagination['current_page'] >= $pagination['last_page'])
                     <span class="page-btn disabled">
                         <i class="bi bi-chevron-right" style="font-size:11px;"></i>
                     </span>
                 @else
-                    <a href="{{ request()->fullUrlWithQuery(['page' => $pagination['current_page'] + 1]) }}"
+                    <a href="{{ request()->fullUrlWithQuery(['page' => $pg + 1]) }}"
                        class="page-btn">
                         <i class="bi bi-chevron-right" style="font-size:11px;"></i>
                     </a>
@@ -346,49 +351,51 @@
 
 @endsection
 
-{{-- ── Modal Bukti Pembayaran & Foto Formal ────────────────── --}}
+{{-- ── Modal Bukti Pembayaran & Foto Formal (Direct Stream) ───── --}}
 <div class="modal fade" id="buktiModal" tabindex="-1" aria-labelledby="buktiModalLabel">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content" style="border-radius:16px;border:none;overflow:hidden;">
 
             <div class="modal-header" style="padding:16px 20px;border-bottom:1px solid var(--color-gray-200);">
                 <div>
-                    <h6 class="modal-title mb-0" id="buktiModalTitle"
-                        style="font-weight:600;font-size:15px;"></h6>
+                    <h6 class="modal-title mb-0" id="buktiModalTitle" style="font-weight:600;font-size:15px;"></h6>
                     <small id="buktiModalNama" class="text-muted"></small>
                 </div>
                 <div style="display:flex;gap:8px;align-items:center;">
-                    <a id="buktiOpenLink" href="#" target="_blank" class="btn-outline-sm" style="font-size:12px;">
-                        <i class="bi bi-box-arrow-up-right"></i> Buka di Drive
+                    <a id="buktiDirectLink" href="#" target="_blank" class="btn-outline-sm" style="font-size:12px;" title="Buka gambar di tab baru">
+                        <i class="bi bi-box-arrow-up-right"></i> Buka Langsung
                     </a>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
             </div>
 
-            <div class="modal-body" style="padding:0;background:#1a1a2e;min-height:500px;
-                                           display:flex;align-items:center;justify-content:center;">
-                {{-- Loading spinner --}}
-                <div id="buktiLoading"
-                     style="text-align:center;color:#fff;padding:40px;">
+            <div class="modal-body" style="padding:20px;background:#0F172A;min-height:420px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                {{-- Direct Image Preview --}}
+                <img id="buktiImg" src="" style="max-width:100%;max-height:460px;border-radius:10px;object-fit:contain;display:none;box-shadow:0 10px 25px rgba(0,0,0,0.5);" alt="Preview">
+
+                {{-- Iframe Fallback --}}
+                <iframe id="buktiFrame" src="" style="width:100%;height:460px;border:none;display:none;border-radius:10px;"></iframe>
+
+                {{-- Loading --}}
+                <div id="buktiLoading" style="text-align:center;color:#fff;padding:40px;">
                     <div class="spinner-border text-light mb-3" role="status"></div>
-                    <div style="font-size:13px;opacity:0.7;">Memuat file...</div>
+                    <div style="font-size:13px;opacity:0.8;">Memuat gambar langsung dari Drive...</div>
                 </div>
 
-                {{-- Iframe Google Drive Preview --}}
-                <iframe id="buktiFrame"
-                        src=""
-                        style="width:100%;height:560px;border:none;display:none;"
-                        allow="autoplay"
-                        onload="frameLoaded()">
-                </iframe>
+                {{-- Access Hint --}}
+                <div class="alert alert-info border-0 mt-3 mb-0 w-100" style="font-size:12px;background:rgba(255,255,255,0.1);color:#93C5FD;border-radius:10px;">
+                    <i class="bi bi-info-circle me-1"></i> <strong>Tips Akses Google Drive:</strong> Jika gambar belum muncul, buka folder Google Form Anda sekali dan set akses ke <em>"Anyone with the link can view"</em> agar terbuka otomatis untuk seluruh peserta.
+                </div>
             </div>
 
-            <div class="modal-footer"
-                 style="padding:12px 20px;border-top:1px solid var(--color-gray-200);
-                        display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-                <div style="font-size:12px;color:var(--color-gray-500);">
-                    <i class="bi bi-info-circle me-1"></i>
-                    Verifikasi kelayakan bukti pembayaran peserta.
+            <div class="modal-footer" style="padding:14px 20px;border-top:1px solid var(--color-gray-200);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                <div style="display:flex;gap:8px;">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="switchViewMode('img')" style="font-size:12px;">
+                        🖼️ Mode Gambar Direct
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="switchViewMode('iframe')" style="font-size:12px;">
+                        📄 Mode Viewer Drive
+                    </button>
                 </div>
                 <div id="modalBuktiActions" style="display:flex;gap:8px;align-items:center;">
                     <form action="{{ route('admin.peserta.pembayaran') }}" method="POST" class="d-inline"
@@ -432,7 +439,37 @@
     </div>
 </div>
 
-{{-- ── Custom Modern Confirmation Modal ─────────────────────── --}}
+{{-- ── Modal Edit Nomor Kursi ───────────────────────────────── --}}
+<div class="modal fade" id="editKursiModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content" style="border-radius:16px;border:none;">
+            <div class="modal-header" style="border-bottom:1px solid var(--color-gray-200);padding:14px 18px;">
+                <h6 class="modal-title mb-0" style="font-weight:700;">Atur Nomor Kursi</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ route('admin.peserta.kursi') }}" method="POST">
+                @csrf
+                <div class="modal-body" style="padding:18px;">
+                    <div style="font-size:13px;font-weight:600;color:var(--color-gray-800);margin-bottom:4px;" id="editKursiNama">-</div>
+                    <div style="font-size:12px;color:var(--color-gray-500);margin-bottom:14px;" id="editKursiNim">-</div>
+
+                    <input type="hidden" name="nim" id="editKursiNimInput" value="">
+                    <div class="mb-2">
+                        <label class="form-label" style="font-size:12px;font-weight:600;">Nomor Kursi (misal: A01, B05)</label>
+                        <input type="text" name="nomor_kursi" id="editKursiValInput" class="form-control" placeholder="Contoh: A01" style="font-size:13px;" required uppercase>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top:none;padding:0 18px 18px;">
+                    <button type="submit" class="btn-primary-sm w-100 justify-content-center py-2">
+                        <i class="bi bi-check-circle-fill me-1"></i> Simpan Nomor Kursi
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- ── Custom Confirmation Modal ────────────────────────────── --}}
 <div class="modal fade" id="customConfirmModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" style="z-index: 1060;">
     <div class="modal-dialog modal-dialog-centered modal-sm" style="max-width:380px;">
         <div class="modal-content" style="border-radius:20px;border:none;box-shadow:0 20px 40px rgba(0,0,0,0.25);overflow:hidden;">
@@ -462,6 +499,8 @@
 @push('scripts')
 <script>
 let pendingConfirmForm = null;
+let currentFileId = '';
+let currentRawUrl  = '';
 
 function confirmAction(e, options = {}) {
     e.preventDefault();
@@ -505,39 +544,61 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-function showBukti(previewUrl, nama, judul, nim = '', payStatus = '') {
-    document.getElementById('buktiModalTitle').textContent = judul;
-    document.getElementById('buktiModalNama').textContent  = nama;
+function openEditKursiModal(nim, nama, kursi) {
+    document.getElementById('editKursiNama').textContent = nama;
+    document.getElementById('editKursiNim').textContent  = 'NIM: ' + nim;
+    document.getElementById('editKursiNimInput').value  = nim;
+    document.getElementById('editKursiValInput').value  = kursi;
+    new bootstrap.Modal(document.getElementById('editKursiModal')).show();
+}
 
-    // Set NIM inputs in modal actions
+function showBukti(fileId, rawUrl, nama, judul, nim = '') {
+    currentFileId = fileId;
+    currentRawUrl  = rawUrl;
+
+    document.getElementById('buktiModalTitle').textContent = judul;
+    document.getElementById('buktiModalNama').textContent  = nama + (nim ? ' (' + nim + ')' : '');
+
     document.getElementById('modalNimValid').value  = nim;
     document.getElementById('modalNimReject').value = nim;
 
-    // Show/hide validation buttons depending on whether it's transfer proof
     const actions = document.getElementById('modalBuktiActions');
-    if (judul === 'Bukti Transfer' && nim) {
-        actions.style.display = 'flex';
-    } else {
-        actions.style.display = 'none';
-    }
+    actions.style.display = (judul === 'Bukti Transfer' && nim) ? 'flex' : 'none';
 
-    // Set link "Buka di Drive" — konversi preview URL balik ke view URL
-    const viewUrl = previewUrl.replace('/preview', '/view');
-    document.getElementById('buktiOpenLink').href = viewUrl;
+    const directImg = fileId ? `https://lh3.googleusercontent.com/d/${fileId}` : rawUrl;
+    document.getElementById('buktiDirectLink').href = fileId ? `https://drive.google.com/file/d/${fileId}/view` : rawUrl;
 
-    // Reset frame
-    const frame   = document.getElementById('buktiFrame');
-    const loading = document.getElementById('buktiLoading');
-    frame.style.display   = 'none';
-    loading.style.display = 'block';
-    frame.src = previewUrl;
-
+    switchViewMode('img');
     new bootstrap.Modal(document.getElementById('buktiModal')).show();
 }
 
-function frameLoaded() {
-    document.getElementById('buktiFrame').style.display   = 'block';
-    document.getElementById('buktiLoading').style.display = 'none';
+function switchViewMode(mode) {
+    const img     = document.getElementById('buktiImg');
+    const frame   = document.getElementById('buktiFrame');
+    const loading = document.getElementById('buktiLoading');
+
+    img.style.display     = 'none';
+    frame.style.display   = 'none';
+    loading.style.display = 'block';
+
+    if (mode === 'img' && currentFileId) {
+        const directImg = `https://lh3.googleusercontent.com/d/${currentFileId}`;
+        img.src = directImg;
+        img.onload = function() {
+            loading.style.display = 'none';
+            img.style.display     = 'block';
+        };
+        img.onerror = function() {
+            switchViewMode('iframe');
+        };
+    } else {
+        const previewUrl = currentFileId ? `https://drive.google.com/file/d/${currentFileId}/preview` : currentRawUrl;
+        frame.src = previewUrl;
+        frame.onload = function() {
+            loading.style.display = 'none';
+            frame.style.display   = 'block';
+        };
+    }
 }
 </script>
 @endpush

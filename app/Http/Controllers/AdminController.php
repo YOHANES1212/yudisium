@@ -36,8 +36,8 @@ class AdminController extends Controller
                 $raw = [];
             }
 
-            // Fetch local payment verifications overrides
-            $localPayments = PaymentVerification::pluck('status_pembayaran', 'nim')->toArray();
+            // Ambil data verifikasi pembayaran & nomor kursi dari database lokal
+            $localVerifications = PaymentVerification::all()->keyBy('nim');
 
             $result = [];
             foreach ($raw as $item) {
@@ -73,10 +73,28 @@ class AdminController extends Controller
                     continue;
                 }
 
-                if ($nim && isset($localPayments[$nim])) {
-                    $clean['Status Pembayaran'] = $localPayments[$nim];
-                } elseif (empty($clean['Status Pembayaran']) || $clean['Status Pembayaran'] === '-') {
+                if ($nim && isset($localVerifications[$nim])) {
+                    $local = $localVerifications[$nim];
+                    if (!empty($local->status_pembayaran)) {
+                        $clean['Status Pembayaran'] = $local->status_pembayaran;
+                    }
+                    if (!empty($local->nomor_kursi)) {
+                        $clean['Nomor Kursi'] = $local->nomor_kursi;
+                    }
+                }
+
+                if (empty($clean['Status Pembayaran']) || $clean['Status Pembayaran'] === '-') {
                     $clean['Status Pembayaran'] = 'Pending';
+                }
+
+                if (!isset($clean['Nomor Kursi']) && isset($clean['Plotting Kursi'])) {
+                    $clean['Nomor Kursi'] = $clean['Plotting Kursi'];
+                }
+                if (!isset($clean['Nomor Kursi']) && isset($clean['Kursi'])) {
+                    $clean['Nomor Kursi'] = $clean['Kursi'];
+                }
+                if (!isset($clean['Nomor Kursi']) || trim($clean['Nomor Kursi']) === '') {
+                    $clean['Nomor Kursi'] = '-';
                 }
 
                 $result[] = $clean;
@@ -115,6 +133,7 @@ class AdminController extends Controller
         $totalHadir       = count(array_filter($data, fn($p) => !empty($p['Waktu Kehadiran'])));
         $totalBelumHadir  = $totalPeserta - $totalHadir;
         $totalValid       = count(array_filter($data, fn($p) => in_array(strtolower($p['Status Pembayaran'] ?? ''), ['valid', 'validkan'])));
+        $totalPlotting    = count(array_filter($data, fn($p) => !empty($p['Nomor Kursi']) && $p['Nomor Kursi'] !== '-'));
 
         // 5 pendaftar terbaru
         $recentPeserta = array_slice(array_reverse($data), 0, 5);
@@ -124,6 +143,7 @@ class AdminController extends Controller
             'totalHadir',
             'totalBelumHadir',
             'totalValid',
+            'totalPlotting',
             'recentPeserta'
         ));
     }
@@ -142,6 +162,7 @@ class AdminController extends Controller
                 return str_contains(strtolower($p['Nama Lengkap']    ?? ''), $s)
                     || str_contains(strtolower($p['NIM']             ?? ''), $s)
                     || str_contains(strtolower($p['Program Studi']   ?? ''), $s)
+                    || str_contains(strtolower($p['Nomor Kursi']     ?? ''), $s)
                     || str_contains(strtolower($p['Email Address']   ?? ''), $s);
             });
         }
@@ -220,7 +241,7 @@ class AdminController extends Controller
     }
 
     /**
-     * Update status pembayaran peserta di database lokal & SheetDB (validkan / Tidak Valid / Pending).
+     * Update status pembayaran peserta di database lokal & SheetDB.
      */
     public function updatePembayaran(Request $request)
     {
@@ -232,20 +253,17 @@ class AdminController extends Controller
         $nim       = trim($request->nim);
         $rawStatus = trim($request->status);
 
-        // Jika disetujui, kirim 'valid' (huruf kecil) ke Google Sheet
         if (in_array(strtolower($rawStatus), ['valid', 'validkan'])) {
             $status = 'valid';
         } else {
             $status = $rawStatus;
         }
 
-        // 1. Simpan ke database lokal agar website selalu akurat
         PaymentVerification::updateOrCreate(
             ['nim' => $nim],
             ['status_pembayaran' => $status]
         );
 
-        // 2. Coba update ke Google Sheets (SheetDB) jika kolomnya tersedia di Google Sheet
         try {
             Http::timeout(10)
                 ->withoutVerifying()
@@ -256,14 +274,11 @@ class AdminController extends Controller
                     ],
                 ]);
 
-            // Panggil WebApp Apps Script jika terkonfigurasi di env
             $webAppUrl = env('APPS_SCRIPT_WEBAPP_URL');
             if ($webAppUrl) {
                 Http::timeout(5)->withoutVerifying()->post($webAppUrl, ['nim' => $nim, 'status' => $status]);
             }
-        } catch (\Throwable $e) {
-            // Biarkan lewat jika kolom belum dibuat di Google Sheet
-        }
+        } catch (\Throwable $e) {}
 
         $this->fetchFresh();
 
@@ -275,6 +290,170 @@ class AdminController extends Controller
     }
 
     /**
+     * Update nomor kursi peserta.
+     */
+    public function updateKursi(Request $request)
+    {
+        $request->validate([
+            'nim'         => 'required|string',
+            'nomor_kursi' => 'required|string|max:20',
+        ]);
+
+        $nim   = trim($request->nim);
+        $kursi = strtoupper(trim($request->nomor_kursi));
+
+        PaymentVerification::updateOrCreate(
+            ['nim' => $nim],
+            ['nomor_kursi' => $kursi]
+        );
+
+        try {
+            Http::timeout(10)
+                ->withoutVerifying()
+                ->patch("{$this->sheetdbUrl}/NIM/{$nim}", [
+                    'data' => [
+                        'Nomor Kursi'    => $kursi,
+                        'Plotting Kursi' => $kursi,
+                    ],
+                ]);
+        } catch (\Throwable $e) {}
+
+        $this->fetchFresh();
+
+        return back()->with('success', "Nomor kursi peserta NIM {$nim} berhasil diatur ke '{$kursi}'.");
+    }
+
+    /**
+     * Plotting otomatis kursi peserta.
+     */
+    public function autoPlotting(Request $request)
+    {
+        $sortBy = $request->input('sort_by', 'prodi'); // 'prodi', 'nim', 'nama'
+        $mode   = $request->input('mode', 'unassigned'); // 'unassigned', 'reset_all'
+
+        $pesertaList = $this->fetchAll();
+
+        if ($mode === 'reset_all') {
+            PaymentVerification::query()->update(['nomor_kursi' => null]);
+            $targets = $pesertaList;
+        } else {
+            $targets = array_values(array_filter($pesertaList, function ($p) {
+                $kursi = trim($p['Nomor Kursi'] ?? '-');
+                return $kursi === '' || $kursi === '-';
+            }));
+        }
+
+        if (empty($targets)) {
+            return back()->with('error', 'Tidak ada peserta yang perlu di-plotting.');
+        }
+
+        usort($targets, function ($a, $b) use ($sortBy) {
+            if ($sortBy === 'prodi') {
+                $pCompare = strcmp($a['Program Studi'] ?? '', $b['Program Studi'] ?? '');
+                if ($pCompare !== 0) return $pCompare;
+                return strcmp($a['Nama Lengkap'] ?? '', $b['Nama Lengkap'] ?? '');
+            } elseif ($sortBy === 'nim') {
+                return strcmp($a['NIM'] ?? '', $b['NIM'] ?? '');
+            } else {
+                return strcmp($a['Nama Lengkap'] ?? '', $b['Nama Lengkap'] ?? '');
+            }
+        });
+
+        $rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+        $cols = range(1, 12);
+        $availableSeats = [];
+
+        $existingSeats = [];
+        if ($mode !== 'reset_all') {
+            foreach ($pesertaList as $p) {
+                $k = trim($p['Nomor Kursi'] ?? '-');
+                if ($k !== '' && $k !== '-') {
+                    $existingSeats[$k] = true;
+                }
+            }
+        }
+
+        foreach ($rows as $r) {
+            foreach ($cols as $c) {
+                $seatCode = $r . str_pad($c, 2, '0', STR_PAD_LEFT);
+                if (!isset($existingSeats[$seatCode])) {
+                    $availableSeats[] = $seatCode;
+                }
+            }
+        }
+
+        $count = 0;
+        foreach ($targets as $p) {
+            if (empty($availableSeats)) break;
+
+            $nim      = trim($p['NIM'] ?? '');
+            $seatCode = array_shift($availableSeats);
+
+            if ($nim) {
+                PaymentVerification::updateOrCreate(
+                    ['nim' => $nim],
+                    ['nomor_kursi' => $seatCode]
+                );
+                $count++;
+            }
+        }
+
+        $this->fetchFresh();
+
+        return back()->with('success', "Berhasil mengalokasikan kursi otomatis untuk {$count} peserta!");
+    }
+
+    /**
+     * Reset seluruh plotting kursi peserta.
+     */
+    public function resetPlotting()
+    {
+        PaymentVerification::query()->update(['nomor_kursi' => null]);
+        $this->fetchFresh();
+
+        return back()->with('success', 'Seluruh alokasi nomor kursi peserta berhasil di-reset.');
+    }
+
+    /**
+     * Halaman Plotting & Denah Kursi.
+     */
+    public function plotting(Request $request)
+    {
+        $pesertaList = $this->fetchAll();
+
+        $assigned   = [];
+        $unassigned = [];
+
+        foreach ($pesertaList as $p) {
+            $kursi = trim($p['Nomor Kursi'] ?? '-');
+            if ($kursi !== '' && $kursi !== '-') {
+                $assigned[$kursi] = $p;
+            } else {
+                $unassigned[] = $p;
+            }
+        }
+
+        // Generate grid rows A-H, columns 1-12
+        $rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+        $cols = range(1, 12);
+
+        $totalCapacity = count($rows) * count($cols);
+        $totalAssigned = count($assigned);
+        $totalHadir    = count(array_filter($pesertaList, fn($p) => !empty($p['Waktu Kehadiran'])));
+
+        return view('admin.plotting', compact(
+            'pesertaList',
+            'assigned',
+            'unassigned',
+            'rows',
+            'cols',
+            'totalCapacity',
+            'totalAssigned',
+            'totalHadir'
+        ));
+    }
+
+    /**
      * Halaman scan absensi.
      */
     public function absensi()
@@ -283,8 +462,14 @@ class AdminController extends Controller
     }
 
     /**
-     * Proses scan QR — support ID Unik langsung, URL dengan ?id=, NIM, atau Email.
+     * Endpoint API untuk mengambil 15 scan log terbaru.
      */
+    public function recentLogs()
+    {
+        $logs = ScanLog::latest('scanned_at')->take(15)->get();
+        return response()->json($logs);
+    }
+
     /**
      * Proses scan QR — support ID Unik langsung, URL dengan ?id=, NIM, atau Email.
      */
@@ -293,24 +478,20 @@ class AdminController extends Controller
         $request->validate(['nim' => 'required|string']);
         $scanned = trim($request->nim);
 
-        // Ekstrak parameter ?id= dari URL (misal hasil QR Code dari Apps Script)
-        // Contoh: https://script.google.com/macros/s/xxx/exec?id=YDS-3-3083
         $searchValue = $scanned;
         if (filter_var($scanned, FILTER_VALIDATE_URL) || str_contains($scanned, 'script.google.com')) {
             $parsed = parse_url($scanned);
             if (isset($parsed['query'])) {
                 parse_str($parsed['query'], $params);
                 if (isset($params['id'])) {
-                    $searchValue = trim($params['id']); // ambil nilai ?id= (misal YDS-3-3083)
+                    $searchValue = trim($params['id']);
                 }
             }
         }
 
-        // 1. Ambil seluruh data peserta dari Google Sheet (paling cepat & akurat)
         $allPeserta = $this->fetchAll();
         $peserta    = null;
 
-        // Search 1: Match persis ID Unik, NIM, atau Email
         foreach ($allPeserta as $p) {
             $idUnik = trim($p['ID Unik'] ?? '');
             $nim    = trim($p['NIM'] ?? '');
@@ -322,18 +503,16 @@ class AdminController extends Controller
             }
         }
 
-        // Search 2: Jika berformat YDS-ROW-XXXX (misal YDS-3-4916), cari berdasarkan baris ke-3 di Google Sheet
         if (! $peserta && str_starts_with($searchValue, 'YDS-')) {
             $parts = explode('-', $searchValue);
             if (count($parts) >= 2 && is_numeric($parts[1])) {
-                $rowIndex = ((int)$parts[1]) - 2; // Row 3 di Sheet = Index 1 di data array (setelah potong header)
+                $rowIndex = ((int)$parts[1]) - 2;
                 if (isset($allPeserta[$rowIndex])) {
                     $peserta = $allPeserta[$rowIndex];
                 }
             }
         }
 
-        // Search 3: Fallback ke SheetDB search API jika tidak ditemukan di memori
         if (! $peserta) {
             $peserta = $this->searchSheet('ID Unik', $searchValue)
                     ?? $this->searchSheet('NIM', $searchValue)
@@ -363,10 +542,6 @@ class AdminController extends Controller
                 'debug'   => "Dicari: {$displayCode}",
             ], 404);
         }
-
-        // Cek ulang langsung dari SheetDB (bypass cache) — hindari race condition
-        $fresh = $this->searchSheet('NIM', $peserta['NIM']);
-        if ($fresh) $peserta = $fresh;
 
         $namaPeserta  = $peserta['Nama Lengkap'] ?? $peserta['nama'] ?? 'Peserta';
         $nimPeserta   = $peserta['NIM'] ?? '-';
@@ -491,6 +666,7 @@ class AdminController extends Controller
                 return str_contains(strtolower($p['Nama Lengkap']    ?? ''), $s)
                     || str_contains(strtolower($p['NIM']             ?? ''), $s)
                     || str_contains(strtolower($p['Program Studi']   ?? ''), $s)
+                    || str_contains(strtolower($p['Nomor Kursi']     ?? ''), $s)
                     || str_contains(strtolower($p['Email Address']   ?? ''), $s);
             });
         }
@@ -511,26 +687,29 @@ class AdminController extends Controller
             });
         }
 
-        // Filter status pembayaran
+        // Filter status pembayaran (case insensitive)
         if ($request->filled('payment')) {
-            $pay = $request->payment;
-            $data = array_filter($data, fn($p) => ($p['Status Pembayaran'] ?? '') === $pay);
+            $pay = strtolower($request->payment);
+            $data = array_filter($data, function ($p) use ($pay) {
+                $status = strtolower($p['Status Pembayaran'] ?? '');
+                if ($pay === 'valid' || $pay === 'validkan') {
+                    return in_array($status, ['valid', 'validkan']);
+                }
+                return $status === $pay;
+            });
         }
 
         $data = array_values($data);
 
-        $headers = [
-            'Content-Type'        => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="peserta_yudisium_' . now()->format('Ymd_His') . '.csv"',
-        ];
+        $filename = 'peserta_yudisium_' . now()->format('Ymd_His') . '.csv';
 
         $callback = function () use ($data) {
             $handle = fopen('php://output', 'w');
-            fputs($handle, "\xEF\xBB\xBF"); // BOM UTF-8
+            fputs($handle, "\xEF\xBB\xBF"); // BOM UTF-8 untuk Excel
 
             fputcsv($handle, [
                 'No', 'Timestamp', 'NIM', 'Nama Lengkap', 'Email', 'Program Studi',
-                'No. HP (WA)', 'Bank Asal', 'Nama Pemilik Rekening', 'Nomor Rekening',
+                'No. HP (WA)', 'Nomor Kursi', 'Bank Asal', 'Nama Pemilik Rekening', 'Nomor Rekening',
                 'Tanggal Transfer', 'Status Pembayaran', 'ID Unik',
                 'Status Email', 'Waktu Kehadiran',
             ]);
@@ -544,6 +723,7 @@ class AdminController extends Controller
                     $p['Email Address']            ?? '',
                     $p['Program Studi']            ?? '',
                     $p['No. Handphone (WA)']       ?? '',
+                    $p['Nomor Kursi']              ?? '-',
                     $p['Bank Asal']                ?? '',
                     $p['Nama Pemilik Rekening']    ?? '',
                     $p['Nomor Rekening']           ?? '',
@@ -558,7 +738,9 @@ class AdminController extends Controller
             fclose($handle);
         };
 
-        return response()->stream($callback, 200, $headers);
+        return response()->streamDownload($callback, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
     }
 
     /**

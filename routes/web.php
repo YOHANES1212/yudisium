@@ -34,9 +34,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'panitia'])->group(f
     Route::get('/peserta',       [AdminController::class, 'peserta'])->name('peserta');
     Route::post('/peserta/hadir',[AdminController::class, 'tandaiHadir'])->name('peserta.hadir');
     Route::post('/peserta/pembayaran', [AdminController::class, 'updatePembayaran'])->name('peserta.pembayaran');
+    Route::post('/peserta/kursi', [AdminController::class, 'updateKursi'])->name('peserta.kursi');
+    Route::get('/plotting',      [AdminController::class, 'plotting'])->name('plotting');
+    Route::post('/plotting/auto', [AdminController::class, 'autoPlotting'])->name('plotting.auto');
+    Route::post('/plotting/reset', [AdminController::class, 'resetPlotting'])->name('plotting.reset');
     Route::get('/absensi',       [AdminController::class, 'absensi'])->name('absensi');
     Route::post('/absensi/scan', [AdminController::class, 'scanQr'])->name('absensi.scan');
     Route::get('/logs',          [AdminController::class, 'logs'])->name('logs');
+    Route::get('/logs/recent',   [AdminController::class, 'recentLogs'])->name('logs.recent');
     Route::get('/export',        [AdminController::class, 'export'])->name('export');
     Route::post('/refresh',      [AdminController::class, 'refresh'])->name('refresh');
 });

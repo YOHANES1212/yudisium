@@ -14,7 +14,7 @@
         {{-- Status bar --}}
         <div style="display:flex;align-items:center;justify-content:space-between;
                     background:#fff;border:1px solid var(--color-gray-200);
-                    border-radius:12px;padding:12px 18px;margin-bottom:12px;">
+                    border-radius:12px;padding:12px 18px;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
             <div style="display:flex;align-items:center;gap:8px;">
                 <span id="statusDot" style="width:10px;height:10px;border-radius:50%;
                       background:#10B981;display:inline-block;animation:pulse 1.5s infinite;"></span>
@@ -22,9 +22,14 @@
                     Siap Scan
                 </span>
             </div>
-            <div style="font-size:12px;color:var(--color-gray-400);">
-                <i class="bi bi-people-fill me-1"></i>
-                <span id="totalHadir">0</span> hadir sesi ini
+            <div style="font-size:12px;color:var(--color-gray-600);display:flex;align-items:center;gap:10px;">
+                <span style="background:var(--color-primary-light);color:var(--color-primary);font-weight:600;padding:3px 10px;border-radius:20px;">
+                    <i class="bi bi-person-badge me-1"></i> {{ Auth::user()->name ?? 'Panitia' }} (🔑 {{ Auth::user()->pin ?? '123456' }})
+                </span>
+                <span>
+                    <i class="bi bi-people-fill me-1 text-primary"></i>
+                    <span id="totalHadir">0</span> hadir sesi ini
+                </span>
             </div>
         </div>
 
@@ -54,9 +59,9 @@
                 <div id="panelKamera">
 
                     {{-- Pilih kamera (depan/belakang untuk HP) --}}
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
                         <select id="cameraSelect" class="search-input"
-                                style="flex:1;padding-left:10px;font-size:13px;"
+                                style="flex:1;min-width:180px;padding-left:10px;font-size:13px;"
                                 onchange="gantikamera()">
                             <option value="">Memuat kamera...</option>
                         </select>
@@ -77,14 +82,11 @@
                         {{-- Overlay garis scan --}}
                         <div id="scanOverlay" style="display:none;position:absolute;inset:0;
                              pointer-events:none;">
-                            {{-- Frame pojok --}}
                             <div style="position:absolute;top:20%;left:15%;width:70%;height:60%;
                                         border:2px solid rgba(79,70,229,0.8);border-radius:8px;"></div>
-                            {{-- Garis scan animasi --}}
                             <div id="scanLine" style="position:absolute;left:15%;width:70%;
                                  height:2px;background:linear-gradient(90deg,transparent,#4F46E5,transparent);
                                  animation:scanAnim 2s linear infinite;top:20%;"></div>
-                            {{-- Label --}}
                             <div style="position:absolute;bottom:12px;left:0;right:0;
                                         text-align:center;color:rgba(255,255,255,0.8);
                                         font-size:12px;font-weight:500;">
@@ -112,25 +114,14 @@
                     <div style="background:#F0FDF4;border-radius:10px;padding:12px 14px;
                                 margin-top:12px;font-size:12px;color:#166534;line-height:1.7;">
                         <strong>💡 Cara scan yang benar:</strong><br>
-                        • Dekatkan HP ke kamera laptop sampai QR Code <strong>besar di layar</strong><br>
-                        • QR harus mengisi minimal <strong>setengah</strong> area kamera<br>
+                        • Dekatkan QR Code HP ke kamera (jarak 10-25 cm)<br>
+                        • Pastikan QR mengisi minimal <strong>setengah</strong> area kamera<br>
                         • Tahan HP diam beberapa detik
-                    </div>
-
-                    {{-- Tips --}}
-                    <div style="background:#F0FDF4;border-radius:10px;padding:12px 14px;
-                                margin-top:12px;font-size:12px;color:#166534;line-height:1.7;">
-                        <strong>Tips agar QR terbaca:</strong><br>
-                        • Pegang QR Code <strong>10–25 cm</strong> dari kamera<br>
-                        • Pastikan cahaya cukup, hindari pantulan layar<br>
-                        • Posisikan QR di dalam kotak garis biru<br>
-                        • QR Code dari layar HP: kurangi kecerahan HP sedikit
                     </div>
                 </div>
 
                 {{-- ── TAB SCANNER FISIK ─────────────────────── --}}
                 <div id="panelFisik" style="display:none;">
-                    {{-- Input tersembunyi untuk scanner --}}
                     <input type="text" id="nimInput" autocomplete="off"
                            style="position:fixed;opacity:0;pointer-events:none;
                                   width:1px;height:1px;top:-9999px;">
@@ -162,7 +153,8 @@
                                         margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;
                                         white-space:nowrap;"></div>
                             <div id="resultDetail"
-                                 style="font-size:13px;opacity:0.75;margin-bottom:6px;"></div>
+                                 style="font-size:13px;opacity:0.85;margin-bottom:4px;"></div>
+                            <div id="resultKursi" style="font-size:13px;font-weight:700;margin-bottom:6px;display:none;"></div>
                             <div id="resultMsg" style="font-size:13px;font-weight:500;"></div>
                         </div>
                     </div>
@@ -177,9 +169,9 @@
                     <div style="flex:1;height:1px;background:var(--color-gray-200);"></div>
                 </div>
 
-                <form id="manualForm" style="display:flex;gap:8px;margin-top:12px;">
+                <form id="manualForm" style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
                     @csrf
-                    <div class="search-input-wrap" style="flex:1;">
+                    <div class="search-input-wrap" style="flex:1;min-width:200px;">
                         <i class="bi bi-keyboard"></i>
                         <input type="text" id="manualInput" class="search-input"
                                style="width:100%;padding-left:32px;"
@@ -241,22 +233,20 @@
 @endsection
 
 @push('scripts')
-{{-- jsQR: coba lokal dulu, fallback ke CDN --}}
 <script>
 (function() {
     var s = document.createElement('script');
     s.src = '{{ asset("js/jsqr.js") }}';
     s.onload = function() { console.log('jsQR loaded from local'); };
     s.onerror = function() {
-        console.warn('Local jsQR failed, trying CDN...');
         var s2 = document.createElement('script');
         s2.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
-        s2.onload = function() { console.log('jsQR loaded from CDN'); };
         document.head.appendChild(s2);
     };
     document.head.appendChild(s);
 })();
 </script>
+
 <script>
 let isProcessing  = false;
 let cameraStream  = null;
@@ -269,7 +259,6 @@ let cameras       = [];
 let lastCode      = '';
 let lastTime      = 0;
 
-// ── Elemen ──────────────────────────────────────────────────────
 const videoEl      = document.getElementById('videoEl');
 const canvasEl     = document.getElementById('canvasEl');
 const scanOverlay  = document.getElementById('scanOverlay');
@@ -284,6 +273,7 @@ const resultBox    = document.getElementById('resultBox');
 const resultIcon   = document.getElementById('resultIcon');
 const resultNama   = document.getElementById('resultNama');
 const resultDetail = document.getElementById('resultDetail');
+const resultKursi  = document.getElementById('resultKursi');
 const resultMsg    = document.getElementById('resultMsg');
 const historyEl    = document.getElementById('scanHistory');
 const emptyHist    = document.getElementById('emptyHistory');
@@ -299,7 +289,6 @@ const STYLES = {
     error    : {bg:'#FEE2E2',color:'#991B1B',icon:'❌',dot:'#EF4444',label:'Error'},
 };
 
-// ── Tab switching ────────────────────────────────────────────────
 function switchTab(tab) {
     currentTab = tab;
     document.getElementById('panelKamera').style.display = tab === 'kamera' ? 'block' : 'none';
@@ -311,10 +300,8 @@ function switchTab(tab) {
     if (tab === 'fisik') { stopKamera(); setTimeout(refocus, 200); }
 }
 
-// ── Daftar kamera ────────────────────────────────────────────────
 async function loadCameras() {
     try {
-        // Cek jsQR tersedia
         if (typeof jsQR === 'undefined') {
             cameraStatus.textContent = '❌ Library QR gagal dimuat.';
             cameraStatus.style.color = '#EF4444';
@@ -350,8 +337,6 @@ async function loadCameras() {
     }
 }
 
-// ── Nyalakan / matikan kamera ────────────────────────────────────
-// ── Nyalakan / matikan kamera ────────────────────────────────────
 async function toggleKamera() {
     if (cameraStream) { stopKamera(); } else { await startKamera(); }
 }
@@ -378,7 +363,6 @@ async function startKamera() {
         cameraStatus.textContent = '🟢 Kamera aktif — arahkan QR Code ke kotak biru';
         cameraStatus.style.color = '#059669';
 
-        // Muat ulang daftar kamera dengan label setelah dapat izin
         const devices = await navigator.mediaDevices.enumerateDevices();
         const vids = devices.filter(d => d.kind === 'videoinput');
         if (vids.length > 0 && vids[0].label) {
@@ -415,7 +399,6 @@ function stopKamera() {
 
 function gantikamera() { if (cameraStream) { stopKamera(); startKamera(); } }
 
-// ── jsQR scan loop ───────────────────────────────────────────────
 function startScanLoop() {
     const ctx = canvasEl.getContext('2d', { willReadFrequently: true });
     let frameCount = 0;
@@ -431,11 +414,10 @@ function startScanLoop() {
             ctx.drawImage(videoEl, 0, 0);
 
             if (frameCount % 60 === 0) {
-                cameraStatus.textContent = `🟢 Kamera aktif ${vw}×${vh} — Scanning...`;
+                cameraStatus.textContent = `🟢 Kamera aktif — Scanning...`;
                 cameraStatus.style.color = '#059669';
             }
 
-            // Coba setiap 3 frame (lebih agresif)
             if (frameCount % 3 === 0) {
                 const result = tryScan(ctx, vw, vh);
                 if (result) {
@@ -455,38 +437,13 @@ function startScanLoop() {
 }
 
 function tryScan(ctx, w, h) {
-    // 1. Full frame normal
     let d = ctx.getImageData(0, 0, w, h);
     let r = jsQR(d.data, w, h, { inversionAttempts: 'attemptBoth' });
     if (r) return r.data;
 
-    // 2. Full frame binarisasi
-    d = ctx.getImageData(0, 0, w, h);
     binarize(d.data, 128);
     r = jsQR(d.data, w, h, { inversionAttempts: 'attemptBoth' });
     if (r) return r.data;
-
-    // 3. Binarisasi dengan threshold lebih rendah (untuk layar terang)
-    d = ctx.getImageData(0, 0, w, h);
-    binarize(d.data, 180);
-    r = jsQR(d.data, w, h, { inversionAttempts: 'attemptBoth' });
-    if (r) return r.data;
-
-    // 4. Crop 4 kuadran — coba tiap sudut
-    const regions = [
-        [0,        0,        w/2, h/2],
-        [w/2,      0,        w/2, h/2],
-        [0,        h/2,      w/2, h/2],
-        [w/4,      h/4,      w/2, h/2],  // tengah
-    ];
-    for (const [x, y, rw, rh] of regions) {
-        d = ctx.getImageData(x, y, rw, rh);
-        r = jsQR(d.data, rw, rh, { inversionAttempts: 'attemptBoth' });
-        if (r) return r.data;
-        binarize(d.data, 150);
-        r = jsQR(d.data, rw, rh, { inversionAttempts: 'attemptBoth' });
-        if (r) return r.data;
-    }
 
     return null;
 }
@@ -499,7 +456,6 @@ function binarize(data, threshold) {
     }
 }
 
-// ── Scanner fisik ────────────────────────────────────────────────
 function refocus() {
     if (currentTab === 'fisik') nimInput.focus({ preventScroll: true });
 }
@@ -527,7 +483,6 @@ nimInput.addEventListener('keydown', (e) => {
     }
 });
 
-// ── Form manual ──────────────────────────────────────────────────
 manualForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const val = manualInput.value.trim();
@@ -536,7 +491,6 @@ manualForm.addEventListener('submit', (e) => {
     processCode(val);
 });
 
-// ── Proses kode ──────────────────────────────────────────────────
 async function processCode(code) {
     if (isProcessing) return;
     isProcessing = true;
@@ -577,7 +531,6 @@ function cleanCodeDisplay(str) {
     return str;
 }
 
-// ── Result ───────────────────────────────────────────────────────
 function showResult(data, code) {
     const s = STYLES[data.status] || STYLES.error;
     const p = data.peserta;
@@ -585,6 +538,7 @@ function showResult(data, code) {
     const nama  = p ? (p['Nama Lengkap']  || p.nama  || cleanCode) : cleanCode;
     const nim   = p ? (p['NIM']           || p.nim   || cleanCode) : cleanCode;
     const prodi = p ? (p['Program Studi'] || p.prodi || '')        : '';
+    const kursi = p ? (p['Nomor Kursi']    || p.nomor_kursi || '-') : '-';
 
     resultCard.style.display   = 'block';
     resultCard.style.animation = 'slideIn 0.25s ease';
@@ -593,6 +547,14 @@ function showResult(data, code) {
     resultIcon.textContent  = s.icon;
     resultNama.textContent  = data.status === 'not_found' ? 'Peserta Tidak Ditemukan' : nama;
     resultDetail.textContent= data.status === 'not_found' ? 'ID / Kode: '+cleanCode : nim+(prodi?' · '+prodi:'');
+
+    if (kursi !== '-' && data.status !== 'not_found') {
+        resultKursi.style.display = 'block';
+        resultKursi.innerHTML = `🪑 <strong>Kursi:</strong> Baris/Nomor <span style="background:rgba(0,0,0,0.08);padding:2px 8px;border-radius:6px;">${esc(kursi)}</span>`;
+    } else {
+        resultKursi.style.display = 'none';
+    }
+
     resultMsg.textContent   = data.status === 'success' ? '✓ Kehadiran berhasil dicatat' : data.message;
 
     if      (data.status === 'success') beepSuccess();
@@ -600,10 +562,9 @@ function showResult(data, code) {
     else                                beepError();
 
     clearTimeout(resultTimer);
-    resultTimer = setTimeout(() => { resultCard.style.display = 'none'; }, 4000);
+    resultTimer = setTimeout(() => { resultCard.style.display = 'none'; }, 5000);
 }
 
-// ── Riwayat ──────────────────────────────────────────────────────
 function addHistory(data, code) {
     const now   = new Date().toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
     const s     = STYLES[data.status] || STYLES.error;
@@ -612,6 +573,7 @@ function addHistory(data, code) {
     const nama  = p ? (p['Nama Lengkap']  || p.nama  || cleanCode) : cleanCode;
     const nim   = p ? (p['NIM']           || p.nim   || cleanCode) : cleanCode;
     const prodi = p ? (p['Program Studi'] || p.prodi || '')        : '';
+    const kursi = p ? (p['Nomor Kursi']    || p.nomor_kursi || '-') : '-';
 
     scanHistory.unshift({ data, code, nama, time: now });
     histCount.textContent   = scanHistory.length;
@@ -631,7 +593,7 @@ function addHistory(data, code) {
             <div style="font-size:13px;font-weight:600;color:var(--color-gray-900);
                         white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(nama)}</div>
             <div style="font-size:11px;color:var(--color-gray-500);">
-                ${esc(nim)}${prodi?' · '+esc(prodi):''}</div>
+                ${esc(nim)}${prodi?' · '+esc(prodi):''}${kursi !== '-' ? ' · 🪑 '+esc(kursi) : ''}</div>
         </div>
         <div style="text-align:right;flex-shrink:0;">
             <div style="font-size:11px;font-weight:600;color:${s.dot};">${s.label}</div>
@@ -640,6 +602,48 @@ function addHistory(data, code) {
 
     const first = historyEl.querySelector('.history-item');
     first ? historyEl.insertBefore(div, first) : historyEl.appendChild(div);
+}
+
+// ── Load scan logs dari server ──────────────────────────────────
+async function loadHistoryFromServer() {
+    try {
+        const res = await fetch('{{ route("admin.logs.recent") }}');
+        const data = await res.json();
+        if (data && data.length > 0) {
+            emptyHist.style.display = 'none';
+            historyEl.querySelectorAll('.history-item').forEach(e => e.remove());
+            histCount.textContent = data.length;
+
+            let hadirCount = 0;
+            data.forEach(item => {
+                if (item.status === 'success') hadirCount++;
+                const time = item.scanned_at ? new Date(item.scanned_at).toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '-';
+                const s = STYLES[item.status] || STYLES.error;
+                const iconClass = item.status === 'success' ? 'bi-check-circle-fill'
+                                : item.status === 'already' ? 'bi-exclamation-circle-fill'
+                                : 'bi-x-circle-fill';
+
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.style.cssText = `display:flex;align-items:center;gap:12px;padding:12px 16px;
+                    border-bottom:1px solid var(--color-gray-100);`;
+                div.innerHTML = `
+                    <i class="bi ${iconClass}" style="color:${s.dot};font-size:18px;flex-shrink:0;"></i>
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:13px;font-weight:600;color:var(--color-gray-900);
+                                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(item.peserta_nama || item.peserta_nim || 'Scan Code')}</div>
+                        <div style="font-size:11px;color:var(--color-gray-500);">
+                            ${esc(item.peserta_nim || '-')}${item.peserta_prodi ? ' · '+esc(item.peserta_prodi) : ''} · Panitia: ${esc(item.panitia_name || 'Panitia')}</div>
+                    </div>
+                    <div style="text-align:right;flex-shrink:0;">
+                        <div style="font-size:11px;font-weight:600;color:${s.dot};">${s.label}</div>
+                        <div style="font-size:10px;color:var(--color-gray-400);">${time}</div>
+                    </div>`;
+                historyEl.appendChild(div);
+            });
+            if (hadirCount > 0) totalHadir.textContent = hadirCount;
+        }
+    } catch(e) {}
 }
 
 function clearHistory() {
@@ -673,7 +677,6 @@ function beepError(){beep(200,350,'sawtooth',0.2);}
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
-// ── Tunggu jsQR siap ─────────────────────────────────────────────
 function waitForJsQR(cb, attempts) {
     attempts = attempts || 0;
     if (typeof jsQR === 'function') {
@@ -686,9 +689,9 @@ function waitForJsQR(cb, attempts) {
     }
 }
 
-// ── Init ─────────────────────────────────────────────────────────
 waitForJsQR(function() {
     loadCameras();
+    loadHistoryFromServer();
     cameraStatus.textContent = '✅ Library QR siap';
     setTimeout(function() { cameraStatus.textContent = ''; }, 2000);
 });
