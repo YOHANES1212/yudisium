@@ -5,8 +5,11 @@ use App\Http\Controllers\PesertaController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 
-// Root → redirect ke login
+// Root → redirect ke admin dashboard jika sudah login, atau ke login jika belum
 Route::get('/', function () {
+    if (auth()->check()) {
+        return redirect()->route('admin.dashboard');
+    }
     return redirect()->route('login');
 });
 

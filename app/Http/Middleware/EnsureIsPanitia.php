@@ -21,12 +21,16 @@ class EnsureIsPanitia
             if ($request->expectsJson()) {
                 return response()->json([
                     'status'  => 'unauthorized',
-                    'message' => 'Akses ditolak. Fitur scan barcode khusus untuk panitia.',
+                    'message' => 'Akses ditolak. Fitur khusus panitia.',
                 ], 403);
             }
 
-            return redirect()->route('admin.dashboard')
-                ->with('error', 'Akses ditolak. Fitur scan barcode absensi hanya dapat diakses oleh Panitia.');
+            auth()->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')
+                ->with('error', 'Akses ditolak. Akun Anda tidak memiliki hak akses panitia.');
         }
 
         return $next($request);
