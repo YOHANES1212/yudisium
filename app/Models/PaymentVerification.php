@@ -13,5 +13,11 @@ class PaymentVerification extends Model
         'nim',
         'status_pembayaran',
         'nomor_kursi',
+        'validated_by',
+        'validated_at',
+    ];
+
+    protected $casts = [
+        'validated_at' => 'datetime',
     ];
 }

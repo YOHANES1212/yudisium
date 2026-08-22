@@ -410,23 +410,32 @@ function startScanLoop() {
         if (videoEl.readyState >= 2 && videoEl.videoWidth > 0) {
             const vw = videoEl.videoWidth;
             const vh = videoEl.videoHeight;
-            canvasEl.width = vw; canvasEl.height = vh;
-            ctx.drawImage(videoEl, 0, 0);
+            const targetW = Math.min(480, vw);
+            const targetH = Math.round(targetW * (vh / vw));
+
+            canvasEl.width = targetW;
+            canvasEl.height = targetH;
+            ctx.drawImage(videoEl, 0, 0, targetW, targetH);
 
             if (frameCount % 60 === 0) {
-                cameraStatus.textContent = `🟢 Kamera aktif — Scanning...`;
+                cameraStatus.textContent = `🟢 Kamera aktif — Scanning kilat...`;
                 cameraStatus.style.color = '#059669';
             }
 
-            if (frameCount % 3 === 0) {
-                const result = tryScan(ctx, vw, vh);
-                if (result) {
+            if (frameCount % 2 === 0 && !isProcessing) {
+                const imgData = ctx.getImageData(0, 0, targetW, targetH);
+                const code = jsQR(imgData.data, targetW, targetH, { inversionAttempts: 'dontInvert' })
+                          || jsQR(imgData.data, targetW, targetH, { inversionAttempts: 'attemptBoth' });
+
+                if (code && code.data) {
+                    const result = code.data;
                     const now = Date.now();
-                    if (result !== lastCode || now - lastTime > 3000) {
-                        lastCode = result; lastTime = now;
-                        cameraStatus.textContent = `✅ Terdeteksi!`;
+                    if (result !== lastCode || now - lastTime > 2500) {
+                        lastCode = result;
+                        lastTime = now;
+                        cameraStatus.textContent = `⚡ Terdeteksi! Memproses...`;
                         cameraStatus.style.color = '#059669';
-                        if (!isProcessing) processCode(result);
+                        processCode(result);
                     }
                 }
             }
@@ -434,26 +443,6 @@ function startScanLoop() {
         scanLoop = requestAnimationFrame(tick);
     }
     scanLoop = requestAnimationFrame(tick);
-}
-
-function tryScan(ctx, w, h) {
-    let d = ctx.getImageData(0, 0, w, h);
-    let r = jsQR(d.data, w, h, { inversionAttempts: 'attemptBoth' });
-    if (r) return r.data;
-
-    binarize(d.data, 128);
-    r = jsQR(d.data, w, h, { inversionAttempts: 'attemptBoth' });
-    if (r) return r.data;
-
-    return null;
-}
-
-function binarize(data, threshold) {
-    for (let i = 0; i < data.length; i += 4) {
-        const g = 0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2];
-        const v = g < threshold ? 0 : 255;
-        data[i] = data[i+1] = data[i+2] = v;
-    }
 }
 
 function refocus() {

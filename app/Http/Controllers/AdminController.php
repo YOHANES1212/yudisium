@@ -81,6 +81,12 @@ class AdminController extends Controller
                     if (!empty($local->nomor_kursi)) {
                         $clean['Nomor Kursi'] = $local->nomor_kursi;
                     }
+                    if (!empty($local->validated_by)) {
+                        $clean['Validated By'] = $local->validated_by;
+                    }
+                    if (!empty($local->validated_at)) {
+                        $clean['Validated At'] = $local->validated_at->format('d/m/Y H:i');
+                    }
                 }
 
                 if (empty($clean['Status Pembayaran']) || $clean['Status Pembayaran'] === '-') {
@@ -267,6 +273,9 @@ class AdminController extends Controller
     private function getProdiPrefix(string $prodiName): string
     {
         $clean = strtolower(trim($prodiName));
+        if (str_contains($clean, 'magister') || str_contains($clean, 'mik') || str_contains($clean, 's2')) {
+            return 'MIK';
+        }
         if (str_contains($clean, 'sistem') || str_contains($clean, 'si')) {
             return 'SI';
         }
@@ -375,7 +384,12 @@ class AdminController extends Controller
             $kursiAuto = $this->generateNextSeatForProdi($prodi, $pesertaList);
         }
 
-        $updateData = ['status_pembayaran' => $status];
+        $validatorName = Auth::user()?->name ?? 'Panitia';
+        $updateData = [
+            'status_pembayaran' => $status,
+            'validated_by'      => $validatorName,
+            'validated_at'      => now(),
+        ];
         if ($kursiAuto) {
             $updateData['nomor_kursi'] = $kursiAuto;
         }
@@ -476,12 +490,19 @@ class AdminController extends Controller
         $count = 0;
 
         if ($formatMode === 'prodi_prefix') {
-            // Group by Prodi
+            // Group by Prodi & Sort so Magister (MIK) gets allocated first (Front VIP seats)
             $grouped = [];
             foreach ($targets as $p) {
                 $pr = trim($p['Program Studi'] ?? 'Umum');
                 $grouped[$pr][] = $p;
             }
+
+            uksort($grouped, function($a, $b) {
+                $aPrefix = $this->getProdiPrefix($a);
+                $bPrefix = $this->getProdiPrefix($b);
+                $order = ['MIK' => 1, 'SI' => 2, 'TI' => 3];
+                return ($order[$aPrefix] ?? 9) <=> ($order[$bPrefix] ?? 9);
+            });
 
             foreach ($grouped as $prodiName => $pList) {
                 foreach ($pList as $p) {
@@ -586,23 +607,32 @@ class AdminController extends Controller
             }
         }
 
-        // 10 Baris (a..j) x 15 Kolom per Sayap (150 SI + 150 TI/MIK = 300 Kursi Total)
-        $rows = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
-        $cols = range(1, 15);
+        // VIP Row Front (Magister: MIK-01 s/d MIK-20) + 10 Baris (a..j) x 15 Kolom per Sayap (150 SI + 150 TI = 320 Kursi Total)
+        $mikCols = range(1, 20);
+        $rows    = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+        $cols    = range(1, 15);
 
-        $totalCapacity = 300;
+        $totalCapacity = 320;
         $totalAssigned = count(array_filter($pesertaList, fn($p) => !empty($p['Nomor Kursi']) && $p['Nomor Kursi'] !== '-'));
         $totalHadir    = count(array_filter($pesertaList, fn($p) => !empty($p['Waktu Kehadiran'])));
+
+        $totalMik = count(array_filter($pesertaList, fn($p) => str_starts_with(strtoupper(trim($p['Nomor Kursi'] ?? '')), 'MIK-')));
+        $totalSi  = count(array_filter($pesertaList, fn($p) => str_starts_with(strtoupper(trim($p['Nomor Kursi'] ?? '')), 'SI-')));
+        $totalTi  = count(array_filter($pesertaList, fn($p) => str_starts_with(strtoupper(trim($p['Nomor Kursi'] ?? '')), 'TI-')));
 
         return view('admin.plotting', compact(
             'pesertaList',
             'assigned',
             'unassigned',
+            'mikCols',
             'rows',
             'cols',
             'totalCapacity',
             'totalAssigned',
-            'totalHadir'
+            'totalHadir',
+            'totalMik',
+            'totalSi',
+            'totalTi'
         ));
     }
 
@@ -644,39 +674,36 @@ class AdminController extends Controller
 
         $allPeserta = $this->fetchAll();
         $peserta    = null;
+        $pesertaIndex = null;
+        $searchLower = strtolower($searchValue);
 
-        foreach ($allPeserta as $p) {
-            $idUnik = trim($p['ID Unik'] ?? '');
-            $nim    = trim($p['NIM'] ?? '');
-            $email  = trim($p['Email Address'] ?? $p['Email'] ?? '');
+        foreach ($allPeserta as $idx => $p) {
+            $idUnik = strtolower(trim($p['ID Unik'] ?? ''));
+            $nim    = strtolower(trim($p['NIM'] ?? ''));
+            $email  = strtolower(trim($p['Email Address'] ?? $p['Email'] ?? ''));
 
-            if ($searchValue !== '' && ($idUnik === $searchValue || $nim === $searchValue || strtolower($email) === strtolower($searchValue))) {
+            if ($searchLower !== '' && ($idUnik === $searchLower || $nim === $searchLower || $email === $searchLower)) {
                 $peserta = $p;
+                $pesertaIndex = $idx;
                 break;
             }
         }
 
-        if (! $peserta && str_starts_with($searchValue, 'YDS-')) {
-            $parts = explode('-', $searchValue);
+        if (! $peserta && str_starts_with(strtoupper($searchValue), 'YDS-')) {
+            $parts = explode('-', strtoupper($searchValue));
             if (count($parts) >= 2 && is_numeric($parts[1])) {
                 $rowIndex = ((int)$parts[1]) - 2;
                 if (isset($allPeserta[$rowIndex])) {
                     $peserta = $allPeserta[$rowIndex];
+                    $pesertaIndex = $rowIndex;
                 }
             }
-        }
-
-        if (! $peserta) {
-            $peserta = $this->searchSheet('ID Unik', $searchValue)
-                    ?? $this->searchSheet('NIM', $searchValue)
-                    ?? $this->searchSheet('Email Address', $searchValue);
         }
 
         $user = Auth::user();
         $operatorName = $user?->name ?? 'Panitia';
         $operatorPin  = $user?->pin  ?? '123456';
-
-        $displayCode = $searchValue !== '' ? $searchValue : $scanned;
+        $displayCode  = $searchValue !== '' ? $searchValue : $scanned;
 
         if (! $peserta) {
             ScanLog::create([
@@ -723,31 +750,11 @@ class AdminController extends Controller
 
         // Tandai hadir
         $waktu = now()->format('d/m/Y H:i:s');
-        $patch = Http::timeout(10)
-            ->withoutVerifying()
-            ->patch("{$this->sheetdbUrl}/NIM/{$nimPeserta}", [
-                'data' => ['Waktu Kehadiran' => $waktu],
-            ]);
 
-        Cache::forget('sheetdb_peserta');
-
-        if (! $patch->successful()) {
-            ScanLog::create([
-                'user_id'      => $user?->id,
-                'panitia_name' => $operatorName,
-                'panitia_pin'  => $operatorPin,
-                'peserta_nim'  => $nimPeserta,
-                'peserta_nama' => $namaPeserta,
-                'peserta_prodi'=> $prodiPeserta,
-                'status'       => 'error',
-                'message'      => 'Gagal menyimpan kehadiran ke SheetDB.',
-                'scanned_at'   => now(),
-            ]);
-
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Gagal menyimpan kehadiran. Coba scan ulang.',
-            ], 500);
+        // Fast update cache in-memory so subsequent scans don't miss cache
+        if ($pesertaIndex !== null && isset($allPeserta[$pesertaIndex])) {
+            $allPeserta[$pesertaIndex]['Waktu Kehadiran'] = $waktu;
+            Cache::put('sheetdb_peserta', $allPeserta, 300);
         }
 
         ScanLog::create([
@@ -761,6 +768,15 @@ class AdminController extends Controller
             'message'      => "Kehadiran {$namaPeserta} berhasil dicatat.",
             'scanned_at'   => now(),
         ]);
+
+        // Fast non-blocking patch to SheetDB
+        try {
+            Http::timeout(1)
+                ->withoutVerifying()
+                ->patch("{$this->sheetdbUrl}/NIM/{$nimPeserta}", [
+                    'data' => ['Waktu Kehadiran' => $waktu],
+                ]);
+        } catch (\Throwable $e) {}
 
         return response()->json([
             'status'  => 'success',
@@ -867,8 +883,8 @@ class AdminController extends Controller
             fputcsv($handle, [
                 'No', 'Timestamp', 'NIM', 'Nama Lengkap', 'Email', 'Program Studi',
                 'No. HP (WA)', 'Nomor Kursi', 'Bank Asal', 'Nama Pemilik Rekening', 'Nomor Rekening',
-                'Tanggal Transfer', 'Status Pembayaran', 'ID Unik',
-                'Status Email', 'Waktu Kehadiran',
+                'Tanggal Transfer', 'Status Pembayaran', 'Divalidasi Oleh', 'Waktu Validasi',
+                'ID Unik', 'Status Email', 'Waktu Kehadiran',
             ]);
 
             foreach ($data as $i => $p) {
@@ -886,6 +902,8 @@ class AdminController extends Controller
                     $p['Nomor Rekening']           ?? '',
                     $p['Tanggal Transfer']         ?? '',
                     $p['Status Pembayaran']        ?? '',
+                    $p['Validated By']             ?? '-',
+                    $p['Validated At']             ?? '-',
                     $p['ID Unik']                  ?? '',
                     $p['Status Email']             ?? '',
                     $p['Waktu Kehadiran']          ?? '',
@@ -927,6 +945,19 @@ class AdminController extends Controller
 
         $logs = $query->paginate(20)->withQueryString();
 
-        return view('admin.logs', compact('logs'));
+        // Data Panitia & Status Login Terakhir
+        $panitiaList = \App\Models\User::whereIn('role', ['panitia', 'admin'])
+            ->orderByRaw('last_login_at IS NULL, last_login_at DESC')
+            ->get();
+
+        $lastLoginUser = $panitiaList->first();
+
+        // Data Log Validasi Pembayaran
+        $validationLogs = PaymentVerification::whereNotNull('validated_by')
+            ->orderBy('validated_at', 'desc')
+            ->take(15)
+            ->get();
+
+        return view('admin.logs', compact('logs', 'panitiaList', 'lastLoginUser', 'validationLogs'));
     }
 }

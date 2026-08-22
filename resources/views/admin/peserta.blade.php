@@ -78,7 +78,7 @@
                 </a>
             @endif
 
-            <a href="{{ route('admin.export', request()->query()) }}" class="btn-outline-sm" style="margin-left:auto;" target="_blank" download onclick="notifyExport(event)">
+            <a href="{{ route('admin.export', request()->query()) }}" class="btn-outline-sm" style="margin-left:auto;" download onclick="notifyExport(event)">
                 <i class="bi bi-file-earmark-excel"></i> Export CSV
             </a>
         </form>
@@ -165,31 +165,49 @@
                         <td>
                             @php $pay = $p['Status Pembayaran'] ?? '-'; @endphp
                             @if(in_array(strtolower($pay), ['valid', 'validkan']))
-                                <div class="d-flex align-items-center gap-1">
-                                    <span class="badge-status badge-hadir">valid</span>
-                                    <form action="{{ route('admin.peserta.pembayaran') }}" method="POST" class="d-inline"
-                                          onsubmit="confirmAction(event, {
-                                              title: 'Batalkan Status Valid',
-                                              message: 'Batalkan status valid pembayaran untuk <strong>{{ addslashes($namaPeserta) }}</strong>?',
-                                              icon: 'bi-exclamation-triangle-fill',
-                                              iconBg: '#FEF3C7',
-                                              iconColor: '#D97706',
-                                              btnText: 'Ya, Ubah Status',
-                                              btnClass: 'btn-warning text-white'
-                                          })">
-                                        @csrf
-                                        <input type="hidden" name="nim" value="{{ $p['NIM'] ?? '' }}">
-                                        <input type="hidden" name="status" value="Tidak Valid">
-                                        <button type="submit" class="btn btn-sm p-0 text-muted" title="Ubah status ke Tidak Valid" style="font-size:12px;border:none;background:none;">
-                                            <i class="bi bi-x-circle-fill"></i>
-                                        </button>
-                                    </form>
+                                <div class="d-flex flex-column gap-1">
+                                    <div class="d-flex align-items-center gap-1">
+                                        <span class="badge-status badge-hadir">valid</span>
+                                        <form action="{{ route('admin.peserta.pembayaran') }}" method="POST" class="d-inline"
+                                              onsubmit="confirmAction(event, {
+                                                  title: 'Batalkan Status Valid',
+                                                  message: 'Batalkan status valid pembayaran untuk <strong>{{ addslashes($namaPeserta) }}</strong>?',
+                                                  icon: 'bi-exclamation-triangle-fill',
+                                                  iconBg: '#FEF3C7',
+                                                  iconColor: '#D97706',
+                                                  btnText: 'Ya, Ubah Status',
+                                                  btnClass: 'btn-warning text-white'
+                                              })">
+                                            @csrf
+                                            <input type="hidden" name="nim" value="{{ $p['NIM'] ?? '' }}">
+                                            <input type="hidden" name="status" value="Tidak Valid">
+                                            <button type="submit" class="btn btn-sm p-0 text-muted" title="Ubah status ke Tidak Valid" style="font-size:12px;border:none;background:none;">
+                                                <i class="bi bi-x-circle-fill"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                    @if(!empty($p['Validated By']))
+                                        <div style="font-size:11px;color:var(--color-gray-500);line-height:1.2;">
+                                            <i class="bi bi-person-check-fill text-success"></i> {{ $p['Validated By'] }}
+                                            @if(!empty($p['Validated At']))
+                                                <span style="font-size:10px;color:var(--color-gray-400);display:block;">{{ $p['Validated At'] }}</span>
+                                            @endif
+                                        </div>
+                                    @endif
                                 </div>
                             @else
                                 <div class="d-flex flex-column gap-1">
                                     <span class="badge-status badge-belum">
                                         {{ $pay ?: 'Pending' }}
                                     </span>
+                                    @if(!empty($p['Validated By']))
+                                        <div style="font-size:11px;color:var(--color-gray-500);line-height:1.2;">
+                                            <i class="bi bi-person-gear"></i> {{ $p['Validated By'] }}
+                                            @if(!empty($p['Validated At']))
+                                                <span style="font-size:10px;color:var(--color-gray-400);display:block;">{{ $p['Validated At'] }}</span>
+                                            @endif
+                                        </div>
+                                    @endif
                                     <div class="d-flex align-items-center gap-1 mt-1">
                                         <form action="{{ route('admin.peserta.pembayaran') }}" method="POST" class="d-inline"
                                               onsubmit="confirmAction(event, {

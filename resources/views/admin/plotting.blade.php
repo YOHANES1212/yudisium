@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 
 @section('title', 'Plotting Kursi')
-@section('page-title', 'Denah & Auto-Floating Bangku Yudisium (300 Kursi)')
+@section('page-title', 'Denah & Auto-Floating Bangku Yudisium (320 Kursi)')
 @section('breadcrumb', 'Plotting Kursi')
 
 @section('content')
@@ -29,15 +29,16 @@
         <div style="max-width:680px;">
             <div class="d-flex align-items-center gap-2 mb-2">
                 <span class="badge" style="background:rgba(255,255,255,0.2);color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;letter-spacing:0.5px;">
-                    ⚡ DENAH SI-01 s/d SI-150 & TI-01 s/d TI-150
+                    👑 VIP MAGISTER (MIK-01..20) | SI (SI-01..150) | TI (TI-01..150)
                 </span>
-                <span style="font-size:12px;opacity:0.8;">• Total Kapasitas: 300 Bangku (150 SI | 150 TI)</span>
+                <span style="font-size:12px;opacity:0.8;">• Total Kapasitas: 320 Bangku (20 MIK | 150 SI | 150 TI)</span>
             </div>
             <h5 class="fw-bold mb-1" style="font-size:18px;">Denah Tempat Duduk Yudisium</h5>
             <p class="mb-0" style="font-size:13px;opacity:0.9;line-height:1.5;">
-                <strong style="color:#A7F3D0;">Sistem Informasi (Sayap Kiri)</strong>: Kode Bangku <strong>SI-01 s/d SI-150</strong>.<br>
-                <strong style="color:#BAE6FD;">Teknik Informatika (Sayap Kanan)</strong>: Kode Bangku <strong>TI-01 s/d TI-150</strong>.<br>
-                <small class="opacity-75">💡 Klik pada bangku yang terisi untuk melihat detail atau <strong>menghapus alokasi bangku</strong>.</small>
+                <strong style="color:#FDE047;">👑 Magister (Baris VIP Terdepan)</strong>: Kode <strong>MIK-01 s/d MIK-20</strong>.<br>
+                <strong style="color:#A7F3D0;">Sistem Informasi (Sayap Kiri)</strong>: Kode <strong>SI-01 s/d SI-150</strong>.<br>
+                <strong style="color:#BAE6FD;">Teknik Informatika (Sayap Kanan)</strong>: Kode <strong>TI-01 s/d TI-150</strong>.<br>
+                <small class="opacity-75">💡 Terdapat <strong>Jalur Tengah / Gang Utama</strong> di antara Sayap SI dan TI. Klik bangku terisi untuk edit/hapus.</small>
             </p>
         </div>
         <div class="d-flex align-items-center gap-2">
@@ -90,16 +91,16 @@
         <div class="stat-card">
             <div class="stat-icon info"><i class="bi bi-grid-3x3-gap-fill"></i></div>
             <div class="stat-info">
-                <div class="stat-value">300</div>
+                <div class="stat-value">320</div>
                 <div class="stat-label">Kapasitas Gedung</div>
-                <div class="stat-change up"><i class="bi bi-building"></i> 150 SI & 150 TI</div>
+                <div class="stat-change up"><i class="bi bi-building"></i> {{ $totalMik ?? 0 }} MIK · {{ $totalSi ?? 0 }} SI · {{ $totalTi ?? 0 }} TI</div>
             </div>
         </div>
     </div>
 </div>
 
 <div class="row g-3">
-    {{-- ── Denah Presisi 2 Sayap (SI-01..150 & TI-01..150) ───── --}}
+    {{-- ── Denah Presisi 3 Sektor (VIP MIK, Sayap SI, Sayap TI) ───── --}}
     <div class="col-12 col-lg-8">
         <div class="data-card">
             <div class="data-card-header">
@@ -108,6 +109,9 @@
                     Denah Tempat Duduk Yudisium
                 </div>
                 <div style="display:flex;gap:12px;font-size:12px;align-items:center;flex-wrap:wrap;">
+                    <span style="display:inline-flex;align-items:center;gap:4px;">
+                        <span style="width:12px;height:12px;border-radius:4px;background:#F59E0B;display:inline-block;"></span> VIP Magister
+                    </span>
                     <span style="display:inline-flex;align-items:center;gap:4px;">
                         <span style="width:12px;height:12px;border-radius:4px;background:#10B981;display:inline-block;"></span> Hadir (Occupied)
                     </span>
@@ -123,35 +127,61 @@
             <div style="padding:20px;overflow-x:auto;">
 
                 {{-- Banner Panggung Utama --}}
-                <div style="background:linear-gradient(135deg, #0F172A, #1E293B);color:#fff;text-align:center;padding:12px;border-radius:12px;font-weight:700;font-size:13px;letter-spacing:1px;margin-bottom:20px;box-shadow:0 4px 10px rgba(0,0,0,0.1);">
-                    🎬 PANGGUNG UTAMA YUDISIUM 🎭
+                <div style="background:linear-gradient(135deg, #0F172A, #1E293B);color:#fff;text-align:center;padding:14px;border-radius:14px;font-weight:800;font-size:14px;letter-spacing:1px;margin-bottom:20px;box-shadow:0 4px 10px rgba(0,0,0,0.15);">
+                    🎭 PANGGUNG UTAMA YUDISIUM 🎭
                 </div>
 
-                {{-- Header 2 Sayap --}}
-                <div class="row g-3 mb-3 text-center" style="min-width:760px;">
-                    <div class="col-6">
-                        <div style="background:#EEF2FF;color:#4F46E5;padding:10px;border-radius:10px;font-weight:700;font-size:13px;border:1.5px solid #C7D2FE;">
-                            SISTEM INFORMASI (SI) — 150 Kursi (SI-01 s/d SI-150)
-                        </div>
+                {{-- 👑 SEKTOR VIP MAGISTER (BARIS TERDEPAN PANGGUNG) --}}
+                <div class="mb-4 style-vip-container" style="background:#FFFBEB;border:2px dashed #F59E0B;border-radius:14px;padding:16px;min-width:840px;">
+                    <div style="text-align:center;font-weight:700;font-size:13px;color:#B45309;margin-bottom:12px;letter-spacing:0.5px;">
+                        👑 SEKTOR VIP MAGISTER ILMU KOMPUTER (BARIS TERDEPAN: MIK-01 s/d MIK-20)
                     </div>
-                    <div class="col-6">
-                        <div style="background:#ECFDF5;color:#059669;padding:10px;border-radius:10px;font-weight:700;font-size:13px;border:1.5px solid #A7F3D0;">
-                            TEKNIK INFORMATIKA (TI) — 150 Kursi (TI-01 s/d TI-150)
-                        </div>
+                    <div style="display:grid;grid-template-columns:repeat(20, 1fr);gap:4px;">
+                        @foreach($mikCols as $mc)
+                        @php
+                            $displayCode = "MIK-" . str_pad($mc, 2, '0', STR_PAD_LEFT);
+                            $p = $assigned[$displayCode] ?? ($assigned["MIK-{$mc}"] ?? null);
+                            $isOccupied = $p && !empty($p['Waktu Kehadiran']);
+                            $isAssigned = $p !== null;
+
+                            $bg = $isOccupied ? '#10B981' : ($isAssigned ? '#F59E0B' : '#FEF3C7');
+                            $color = $isAssigned ? '#fff' : '#92400E';
+                            $border = $isAssigned ? 'none' : '1px solid #FDE68A';
+                        @endphp
+                        <button type="button"
+                                onclick="inspectSeat('{{ $displayCode }}', '{{ $p ? addslashes($p['Nama Lengkap'] ?? $p['nama'] ?? '') : '' }}', '{{ $p ? ($p['NIM'] ?? '') : '' }}', 'Magister Ilmu Komputer', '{{ $p ? (!empty($p['Waktu Kehadiran']) ? 'Hadir' : 'Belum Hadir') : 'Kosong' }}')"
+                                style="height:38px;border-radius:6px;background:{{ $bg }};color:{{ $color }};border:{{ $border }};font-weight:700;font-size:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;padding:1px;"
+                                title="{{ $displayCode }}: {{ $p ? ($p['Nama Lengkap'] ?? $p['nama'] ?? '') : 'Kosong (Klik untuk atur)' }}">
+                            <span>{{ $displayCode }}</span>
+                        </button>
+                        @endforeach
                     </div>
                 </div>
 
-                {{-- Grid Dual Wings SI (1..150) & TI (1..150) --}}
-                <div style="min-width:760px;">
+                {{-- Header 2 Sayap (SI & TI) dengan Gang Tengah --}}
+                <div style="display:flex;align-items:center;gap:20px;margin-bottom:12px;min-width:840px;">
+                    <div style="flex:1;background:#EEF2FF;color:#4F46E5;padding:10px;border-radius:10px;font-weight:700;font-size:13px;border:1.5px solid #C7D2FE;text-align:center;">
+                        SISTEM INFORMASI (SI) — 150 Kursi (SI-01 s/d SI-150)
+                    </div>
+                    <div style="width:40px;text-align:center;font-size:11px;font-weight:800;color:#9CA3AF;letter-spacing:1px;">
+                        GANG
+                    </div>
+                    <div style="flex:1;background:#ECFDF5;color:#059669;padding:10px;border-radius:10px;font-weight:700;font-size:13px;border:1.5px solid #A7F3D0;text-align:center;">
+                        TEKNIK INFORMATIKA (TI) — 150 Kursi (TI-01 s/d TI-150)
+                    </div>
+                </div>
+
+                {{-- Grid Dual Wings SI & TI dengan JALUR TENGAH (GANG UTAMA) --}}
+                <div style="min-width:840px;">
                     @foreach($rows as $rowIndex => $r)
-                    <div class="row g-2 mb-2 align-items-center">
+                    <div style="display:flex;align-items:center;gap:20px;margin-bottom:6px;">
 
                         {{-- SAYAP KIRI (SI - 15 Kolom per Baris) --}}
-                        <div class="col-6">
+                        <div style="flex:1;">
                             <div style="display:grid;grid-template-columns:repeat(15, 1fr);gap:4px;">
                                 @foreach($cols as $c)
                                 @php
-                                    $siNum = ($rowIndex * 15) + $c; // 1 s/d 150
+                                    $siNum = ($rowIndex * 15) + $c;
                                     $siFormatted = str_pad($siNum, 2, '0', STR_PAD_LEFT);
                                     $displayCode = "SI-{$siFormatted}";
                                     $codeGrid = "SI-{$r}" . str_pad($c, 2, '0', STR_PAD_LEFT);
@@ -177,12 +207,17 @@
                             </div>
                         </div>
 
+                        {{-- 🚶 JALUR TENGAH / GANG UTAMA 🚶 --}}
+                        <div style="width:40px;background:#F1F5F9;border:1px dashed #CBD5E1;border-radius:6px;height:36px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#64748B;">
+                            🚶
+                        </div>
+
                         {{-- SAYAP KANAN (TI - 15 Kolom per Baris) --}}
-                        <div class="col-6">
+                        <div style="flex:1;">
                             <div style="display:grid;grid-template-columns:repeat(15, 1fr);gap:4px;">
                                 @foreach($cols as $c)
                                 @php
-                                    $tiNum = ($rowIndex * 15) + $c; // 1 s/d 150
+                                    $tiNum = ($rowIndex * 15) + $c;
                                     $tiFormatted = str_pad($tiNum, 2, '0', STR_PAD_LEFT);
                                     $displayCode = "TI-{$tiFormatted}";
                                     $codeGrid = "TI-{$r}" . str_pad($c, 2, '0', STR_PAD_LEFT);
@@ -240,9 +275,9 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label" style="font-size:12px;font-weight:600;">Nomor Bangku (misal: SI-01, TI-01)</label>
-                        <input type="text" name="nomor_kursi" id="quickNomorKursi" class="form-control" placeholder="Contoh: SI-01 atau TI-05" style="font-size:13px;" required uppercase>
-                        <small class="text-muted" style="font-size:11px;">Format: `SI-01` s/d `SI-150` atau `TI-01` s/d `TI-150`.</small>
+                        <label class="form-label" style="font-size:12px;font-weight:600;">Nomor Bangku (misal: MIK-01, SI-01, TI-01)</label>
+                        <input type="text" name="nomor_kursi" id="quickNomorKursi" class="form-control" placeholder="Contoh: MIK-01, SI-01 atau TI-05" style="font-size:13px;" required uppercase>
+                        <small class="text-muted" style="font-size:11px;">Format: `MIK-01..20` (VIP Magister), `SI-01..150` atau `TI-01..150`.</small>
                     </div>
 
                     <button type="submit" class="btn-primary-sm w-100 justify-content-center py-2">
@@ -294,8 +329,8 @@
                         <i class="bi bi-lightning-charge-fill text-warning"></i>
                     </div>
                     <div>
-                        <h6 class="modal-title mb-0" style="font-weight:700;">Resepsionis Pinter Auto-Floating (300 Kursi)</h6>
-                        <small class="text-muted">Plotting massal otomatis sesuai Bangku SI-01 & TI-01</small>
+                        <h6 class="modal-title mb-0" style="font-weight:700;">Resepsionis Pinter Auto-Floating (320 Kursi)</h6>
+                        <small class="text-muted">Plotting massal otomatis sesuai Bangku MIK, SI & TI</small>
                     </div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -307,9 +342,9 @@
                     <div class="mb-3">
                         <label class="form-label" style="font-size:13px;font-weight:600;">Format Kode Bangku</label>
                         <select name="format" class="form-select" style="font-size:13px;">
-                            <option value="prodi_prefix" selected>🎯 Format Prodi: SI-01 s/d SI-150 & TI-01 s/d TI-150</option>
+                            <option value="prodi_prefix" selected>🎯 Format Prodi: VIP MIK-01..20, SI-01..150 & TI-01..150</option>
                         </select>
-                        <small class="text-muted" style="font-size:11px;">Anak SI otomatis mendapat `SI-01`, `SI-02` dst. Anak TI otomatis mendapat `TI-01`, `TI-02` dst.</small>
+                        <small class="text-muted" style="font-size:11px;">Magister otomatis mendapat `MIK-01` di depan, anak SI `SI-01`, anak TI `TI-01`.</small>
                     </div>
 
                     <div class="mb-3">
@@ -354,7 +389,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center" style="padding:20px;">
-                <div id="seatBadge" style="width:68px;height:54px;border-radius:12px;background:var(--color-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;margin:0 auto 12px;padding:0 8px;">
+                <div id="seatBadge" style="width:78px;height:54px;border-radius:12px;background:var(--color-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;margin:0 auto 12px;padding:0 8px;">
                     SI-01
                 </div>
                 <h6 id="seatNama" style="font-weight:700;font-size:15px;margin-bottom:2px;">-</h6>

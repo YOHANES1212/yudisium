@@ -34,6 +34,10 @@ class AuthController extends Controller
 
         if (Auth::attempt($credentials, $remember)) {
             $request->session()->regenerate();
+            Auth::user()->update([
+                'last_login_at' => now(),
+                'last_login_ip' => $request->ip(),
+            ]);
             return redirect()->intended(route('admin.dashboard'));
         }
 
@@ -72,11 +76,13 @@ class AuthController extends Controller
         ]);
 
         $user = User::create([
-            'name'     => $request->name,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password),
-            'role'     => 'panitia',
-            'pin'      => $request->pin,
+            'name'          => $request->name,
+            'email'         => $request->email,
+            'password'      => Hash::make($request->password),
+            'role'          => 'panitia',
+            'pin'           => $request->pin,
+            'last_login_at' => now(),
+            'last_login_ip' => $request->ip(),
         ]);
 
         Auth::login($user);
