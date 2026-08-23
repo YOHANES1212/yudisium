@@ -241,7 +241,7 @@ class AdminController extends Controller
     }
 
     /**
-     * Tandai peserta hadir — update kolom "Waktu Kehadiran" di SheetDB.
+     * Tandai peserta hadir — update kolom "Waktu Kehadiran" via Apps Script.
      */
     public function tandaiHadir(Request $request)
     {
@@ -252,8 +252,9 @@ class AdminController extends Controller
 
         $response = Http::timeout(10)
             ->withoutVerifying()
-            ->patch("{$this->sheetdbUrl}/NIM/{$nim}", [
-                'data' => ['Waktu Kehadiran' => $waktu],
+            ->post($this->sheetdbUrl, [
+                'nim'     => $nim,
+                'updates' => ['Waktu Kehadiran' => $waktu],
             ]);
 
         $this->fetchFresh();
@@ -262,7 +263,7 @@ class AdminController extends Controller
             return back()->with('success', "Peserta NIM {$nim} berhasil ditandai hadir pada {$waktu}.");
         }
 
-        return back()->with('error', 'Gagal memperbarui data di SheetDB. Coba lagi.');
+        return back()->with('error', 'Gagal memperbarui data. Coba lagi.');
     }
 
     /**
@@ -333,8 +334,9 @@ class AdminController extends Controller
         try {
             Http::timeout(10)
                 ->withoutVerifying()
-                ->patch("{$this->sheetdbUrl}/NIM/{$nim}", [
-                    'data' => [
+                ->post($this->sheetdbUrl, [
+                    'nim'     => $nim,
+                    'updates' => [
                         'Nomor Kursi'    => '-',
                         'Plotting Kursi' => '-',
                     ],
@@ -347,7 +349,7 @@ class AdminController extends Controller
     }
 
     /**
-     * Update status pembayaran peserta di database lokal & SheetDB.
+     * Update status pembayaran peserta di database lokal & sheet.
      * Sekaligus memicu Auto-Floating Bangku jika status berubah jadi 'valid'.
      */
     public function updatePembayaran(Request $request)
@@ -408,8 +410,9 @@ class AdminController extends Controller
 
             Http::timeout(10)
                 ->withoutVerifying()
-                ->patch("{$this->sheetdbUrl}/NIM/{$nim}", [
-                    'data' => $patchData,
+                ->post($this->sheetdbUrl, [
+                    'nim'     => $nim,
+                    'updates' => $patchData,
                 ]);
 
             $webAppUrl = env('APPS_SCRIPT_WEBAPP_URL');
@@ -450,8 +453,9 @@ class AdminController extends Controller
         try {
             Http::timeout(10)
                 ->withoutVerifying()
-                ->patch("{$this->sheetdbUrl}/NIM/{$nim}", [
-                    'data' => [
+                ->post($this->sheetdbUrl, [
+                    'nim'     => $nim,
+                    'updates' => [
                         'Nomor Kursi'    => $kursi,
                         'Plotting Kursi' => $kursi,
                     ],
@@ -518,8 +522,9 @@ class AdminController extends Controller
                     );
 
                     try {
-                        Http::timeout(5)->withoutVerifying()->patch("{$this->sheetdbUrl}/NIM/{$nim}", [
-                            'data' => [
+                        Http::timeout(5)->withoutVerifying()->post($this->sheetdbUrl, [
+                            'nim'     => $nim,
+                            'updates' => [
                                 'Nomor Kursi'    => $seatCode,
                                 'Plotting Kursi' => $seatCode,
                             ],
@@ -769,12 +774,13 @@ class AdminController extends Controller
             'scanned_at'   => now(),
         ]);
 
-        // Fast non-blocking patch to SheetDB
+        // Fast non-blocking update ke Apps Script
         try {
             Http::timeout(1)
                 ->withoutVerifying()
-                ->patch("{$this->sheetdbUrl}/NIM/{$nimPeserta}", [
-                    'data' => ['Waktu Kehadiran' => $waktu],
+                ->post($this->sheetdbUrl, [
+                    'nim'     => $nimPeserta,
+                    'updates' => ['Waktu Kehadiran' => $waktu],
                 ]);
         } catch (\Throwable $e) {}
 
@@ -783,42 +789,6 @@ class AdminController extends Controller
             'message' => "Kehadiran {$namaPeserta} berhasil dicatat pukul {$waktu}.",
             'peserta' => array_merge($peserta, ['Waktu Kehadiran' => $waktu]),
         ]);
-    }
-
-    /**
-     * Helper: cari satu baris di SheetDB berdasarkan kolom & nilai tertentu.
-     */
-    private function searchSheet(string $column, string $value): ?array
-    {
-        $response = Http::timeout(10)
-            ->withoutVerifying()
-            ->get("{$this->sheetdbUrl}/search", [
-                $column => $value,
-            ]);
-
-        if ($response->successful() && ! empty($response->json())) {
-            $item = $response->json()[0];
-            if (is_array($item)) {
-                $clean = [];
-                foreach ($item as $key => $val) {
-                    $cleanKey = trim($key);
-                    $clean[$cleanKey] = is_string($val) ? trim($val) : $val;
-                }
-                if (isset($clean['Nama Lengkap']) && !isset($clean['nama'])) {
-                    $clean['nama'] = $clean['Nama Lengkap'];
-                }
-                if (isset($clean['Email']) && !isset($clean['Email Address'])) {
-                    $clean['Email Address'] = $clean['Email'];
-                }
-                if (isset($clean['Email Address']) && !isset($clean['Email'])) {
-                    $clean['Email'] = $clean['Email Address'];
-                }
-                return $clean;
-            }
-            return $item;
-        }
-
-        return null;
     }
 
     /**
