@@ -18,7 +18,13 @@ class AdminController extends Controller
 
     public function __construct()
     {
-        $this->sheetdbUrl = config('services.sheetdb.url', env('SHEETDB_URL', 'https://sheetdb.io/api/v1/71445zve8u6f7'));
+        $url = config('services.sheetdb.url', env('SHEETDB_URL', 'https://sheetdb.io/api/v1/71445zve8u6f7'));
+        if (str_starts_with($url, '//')) {
+            $url = 'https:' . $url;
+        } elseif (!str_starts_with($url, 'http://') && !str_starts_with($url, 'https://')) {
+            $url = 'https://' . $url;
+        }
+        $this->sheetdbUrl = $url;
     }
 
     /**
@@ -86,6 +92,9 @@ class AdminController extends Controller
                     }
                     if (!empty($local->validated_at)) {
                         $clean['Validated At'] = $local->validated_at->format('d/m/Y H:i');
+                    }
+                    if (!empty($local->waktu_kehadiran)) {
+                        $clean['Waktu Kehadiran'] = $local->waktu_kehadiran;
                     }
                 }
 
@@ -241,29 +250,57 @@ class AdminController extends Controller
     }
 
     /**
-     * Tandai peserta hadir — update kolom "Waktu Kehadiran" via Apps Script.
+     * Tandai peserta hadir — update kolom "Waktu Kehadiran" via Apps Script & database lokal.
      */
     public function tandaiHadir(Request $request)
     {
         $request->validate(['nim' => 'required|string']);
 
-        $nim      = $request->nim;
+        $nim      = trim($request->nim);
         $waktu    = now()->format('d/m/Y H:i:s');
 
-        $response = Http::timeout(10)
-            ->withoutVerifying()
-            ->post($this->sheetdbUrl, [
-                'nim'     => $nim,
-                'updates' => ['Waktu Kehadiran' => $waktu],
-            ]);
+        PaymentVerification::updateOrCreate(
+            ['nim' => $nim],
+            ['waktu_kehadiran' => $waktu]
+        );
+
+        try {
+            Http::timeout(5)
+                ->withoutVerifying()
+                ->post($this->sheetdbUrl, [
+                    'nim'     => $nim,
+                    'updates' => ['Waktu Kehadiran' => $waktu],
+                ]);
+        } catch (\Throwable $e) {}
 
         $this->fetchFresh();
 
-        if ($response->successful()) {
-            return back()->with('success', "Peserta NIM {$nim} berhasil ditandai hadir pada {$waktu}.");
-        }
+        return back()->with('success', "Peserta NIM {$nim} berhasil ditandai hadir pada {$waktu}.");
+    }
 
-        return back()->with('error', 'Gagal memperbarui data. Coba lagi.');
+    /**
+     * Batalkan status kehadiran peserta.
+     */
+    public function batalHadir(Request $request)
+    {
+        $request->validate(['nim' => 'required|string']);
+
+        $nim = trim($request->nim);
+
+        PaymentVerification::where('nim', $nim)->update(['waktu_kehadiran' => null]);
+
+        try {
+            Http::timeout(5)
+                ->withoutVerifying()
+                ->post($this->sheetdbUrl, [
+                    'nim'     => $nim,
+                    'updates' => ['Waktu Kehadiran' => ''],
+                ]);
+        } catch (\Throwable $e) {}
+
+        $this->fetchFresh();
+
+        return back()->with('success', "Status kehadiran peserta NIM {$nim} berhasil dibatalkan.");
     }
 
     /**
@@ -756,6 +793,12 @@ class AdminController extends Controller
         // Tandai hadir
         $waktu = now()->format('d/m/Y H:i:s');
 
+        // Simpan ke database lokal agar tidak hilang saat refresh data
+        PaymentVerification::updateOrCreate(
+            ['nim' => $nimPeserta],
+            ['waktu_kehadiran' => $waktu]
+        );
+
         // Fast update cache in-memory so subsequent scans don't miss cache
         if ($pesertaIndex !== null && isset($allPeserta[$pesertaIndex])) {
             $allPeserta[$pesertaIndex]['Waktu Kehadiran'] = $waktu;
@@ -776,7 +819,7 @@ class AdminController extends Controller
 
         // Fast non-blocking update ke Apps Script
         try {
-            Http::timeout(1)
+            Http::timeout(5)
                 ->withoutVerifying()
                 ->post($this->sheetdbUrl, [
                     'nim'     => $nimPeserta,
@@ -788,6 +831,18 @@ class AdminController extends Controller
             'status'  => 'success',
             'message' => "Kehadiran {$namaPeserta} berhasil dicatat pukul {$waktu}.",
             'peserta' => array_merge($peserta, ['Waktu Kehadiran' => $waktu]),
+        ]);
+    }
+
+    /**
+     * Bersihkan seluruh log scan absensi secara permanen dari database.
+     */
+    public function clearLogs()
+    {
+        ScanLog::query()->delete();
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Seluruh riwayat log scan absensi berhasil dibersihkan secara permanen.',
         ]);
     }
 

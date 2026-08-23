@@ -315,7 +315,22 @@
                                     </button>
                                 </form>
                             @else
-                                <span style="font-size:12px; color:var(--color-gray-400);">✓</span>
+                                <form action="{{ route('admin.peserta.batal-hadir') }}" method="POST" class="d-inline"
+                                      onsubmit="confirmAction(event, {
+                                          title: 'Batalkan Kehadiran',
+                                          message: 'Batalkan status kehadiran <strong>{{ addslashes($namaPeserta) }}</strong>?',
+                                          icon: 'bi-x-circle-fill',
+                                          iconBg: '#FEE2E2',
+                                          iconColor: '#DC2626',
+                                          btnText: 'Ya, Batal Hadir',
+                                          btnClass: 'btn-danger'
+                                      })">
+                                    @csrf
+                                    <input type="hidden" name="nim" value="{{ $p['NIM'] ?? '' }}">
+                                    <button type="submit" class="action-btn text-danger" title="Batalkan Kehadiran Peserta">
+                                        <i class="bi bi-person-x-fill"></i>
+                                    </button>
+                                </form>
                             @endif
                         </td>
                     </tr>

@@ -635,12 +635,30 @@ async function loadHistoryFromServer() {
     } catch(e) {}
 }
 
-function clearHistory() {
-    scanHistory = [];
-    historyEl.querySelectorAll('.history-item').forEach(e => e.remove());
-    emptyHist.style.display = '';
-    resultCard.style.display = 'none';
-    histCount.textContent = '0';
+async function clearHistory() {
+    if (!confirm('Apakah Anda yakin ingin membersihkan seluruh riwayat scan absensi secara permanen?')) return;
+    try {
+        const res = await fetch('{{ route("admin.logs.clear") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            scanHistory = [];
+            historyEl.querySelectorAll('.history-item').forEach(e => e.remove());
+            emptyHist.style.display = '';
+            resultCard.style.display = 'none';
+            histCount.textContent = '0';
+            totalHadir.textContent = '0';
+        } else {
+            alert(data.message || 'Gagal membersihkan riwayat scan.');
+        }
+    } catch(e) {
+        alert('Gagal terhubung ke server untuk membersihkan riwayat.');
+    }
 }
 
 function setStatus(state) {

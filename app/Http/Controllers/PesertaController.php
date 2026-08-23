@@ -17,6 +17,11 @@ class PesertaController extends Controller
     {
         // 1. Mengambil data pendaftar dari Google Sheets teman Anda
         $sheetdbUrl = config('services.sheetdb.url', env('SHEETDB_URL', 'https://sheetdb.io/api/v1/71445zve8u6f7'));
+        if (str_starts_with($sheetdbUrl, '//')) {
+            $sheetdbUrl = 'https:' . $sheetdbUrl;
+        } elseif (!str_starts_with($sheetdbUrl, 'http://') && !str_starts_with($sheetdbUrl, 'https://')) {
+            $sheetdbUrl = 'https://' . $sheetdbUrl;
+        }
         $response = Http::withoutVerifying()->get($sheetdbUrl);
         $pesertaFromForm = $response->successful() ? $response->json() : [];
 

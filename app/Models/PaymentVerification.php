@@ -15,6 +15,7 @@ class PaymentVerification extends Model
         'nomor_kursi',
         'validated_by',
         'validated_at',
+        'waktu_kehadiran',
     ];
 
     protected $casts = [

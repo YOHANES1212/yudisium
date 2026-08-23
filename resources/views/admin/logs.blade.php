@@ -206,6 +206,13 @@
                     <i class="bi bi-x"></i> Reset
                 </a>
             @endif
+
+            <form action="{{ route('admin.logs.clear') }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus seluruh log scan absensi secara permanen?')">
+                @csrf
+                <button type="submit" class="btn-outline-sm text-danger border-danger" style="font-size:12px;">
+                    <i class="bi bi-trash3"></i> Bersihkan Log
+                </button>
+            </form>
         </form>
     </div>
 
