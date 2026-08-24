@@ -187,10 +187,10 @@
                 </div>
 
                 {{-- 🪑 3 BLOK UTAMA TEMPAT DUDUK (BLOK KIRI, TENGAH, KANAN) --}}
-                <div style="display:flex;gap:18px;min-width:820px;justify-content:center;">
+                <div style="display:flex;gap:20px;min-width:960px;justify-content:center;">
 
                     {{-- BLOK 1: BLOK KIRI (Magister M1-M12 + SI S1-S71 + TI T1-T25) --}}
-                    <div style="flex:1;max-width:270px;">
+                    <div style="flex:1;max-width:340px;">
                         <div style="text-align:center;font-size:11px;font-weight:700;color:#94A3B8;margin-bottom:8px;letter-spacing:1px;">
                             BLOK KIRI
                         </div>
@@ -200,7 +200,7 @@
                             <div style="font-size:9px;font-weight:700;color:#00C853;text-align:center;margin-bottom:3px;">
                                 MAGISTER (M1 - M12)
                             </div>
-                            <div style="display:grid;grid-template-columns:repeat(6, 1fr);gap:3px;">
+                            <div style="display:grid;grid-template-columns:repeat(11, 1fr);gap:2px;">
                                 @for($i = 1; $i <= 12; $i++)
                                     @php
                                         $code = "M{$i}";
@@ -214,7 +214,7 @@
                                     @endphp
                                     <button type="button"
                                             onclick="inspectSeat('{{ $code }}', '{{ $p ? addslashes($p['Nama Lengkap'] ?? $p['nama'] ?? '') : '' }}', '{{ $p ? ($p['NIM'] ?? '') : '' }}', 'Magister Ilmu Komputer', '{{ $p ? (!empty($p['Waktu Kehadiran']) ? 'Hadir' : 'Belum Hadir') : 'Kosong' }}')"
-                                            style="height:22px;border-radius:3px;background:{{ $bg }};color:{{ $color }};border:{{ $border }};font-weight:700;font-size:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;"
+                                            style="height:20px;border-radius:2px;background:{{ $bg }};color:{{ $color }};border:{{ $border }};font-weight:700;font-size:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;"
                                             title="{{ $code }}: {{ $p ? ($p['Nama Lengkap'] ?? $p['nama'] ?? '') : 'Kosong' }}">
                                         {{ $code }}
                                     </button>
@@ -227,7 +227,7 @@
                             <div style="font-size:9px;font-weight:700;color:#FF9100;text-align:center;margin-bottom:3px;">
                                 SISTEM INFORMASI (S1 - S71)
                             </div>
-                            <div style="display:grid;grid-template-columns:repeat(6, 1fr);gap:3px;">
+                            <div style="display:grid;grid-template-columns:repeat(11, 1fr);gap:2px;">
                                 @for($i = 1; $i <= 71; $i++)
                                     @php
                                         $code = "S{$i}";
@@ -241,7 +241,7 @@
                                     @endphp
                                     <button type="button"
                                             onclick="inspectSeat('{{ $code }}', '{{ $p ? addslashes($p['Nama Lengkap'] ?? $p['nama'] ?? '') : '' }}', '{{ $p ? ($p['NIM'] ?? '') : '' }}', 'Sistem Informasi', '{{ $p ? (!empty($p['Waktu Kehadiran']) ? 'Hadir' : 'Belum Hadir') : 'Kosong' }}')"
-                                            style="height:22px;border-radius:3px;background:{{ $bg }};color:{{ $color }};border:{{ $border }};font-weight:700;font-size:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;"
+                                            style="height:20px;border-radius:2px;background:{{ $bg }};color:{{ $color }};border:{{ $border }};font-weight:700;font-size:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;"
                                             title="{{ $code }}: {{ $p ? ($p['Nama Lengkap'] ?? $p['nama'] ?? '') : 'Kosong' }}">
                                         {{ $code }}
                                     </button>
@@ -254,7 +254,7 @@
                             <div style="font-size:9px;font-weight:700;color:#2979FF;text-align:center;margin-bottom:3px;">
                                 TEKNIK INFORMATIKA (T1 - T25)
                             </div>
-                            <div style="display:grid;grid-template-columns:repeat(6, 1fr);gap:3px;">
+                            <div style="display:grid;grid-template-columns:repeat(11, 1fr);gap:2px;">
                                 @for($i = 1; $i <= 25; $i++)
                                     @php
                                         $code = "T{$i}";
@@ -268,7 +268,7 @@
                                     @endphp
                                     <button type="button"
                                             onclick="inspectSeat('{{ $code }}', '{{ $p ? addslashes($p['Nama Lengkap'] ?? $p['nama'] ?? '') : '' }}', '{{ $p ? ($p['NIM'] ?? '') : '' }}', 'Teknik Informatika', '{{ $p ? (!empty($p['Waktu Kehadiran']) ? 'Hadir' : 'Belum Hadir') : 'Kosong' }}')"
-                                            style="height:22px;border-radius:3px;background:{{ $bg }};color:{{ $color }};border:{{ $border }};font-weight:700;font-size:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;"
+                                            style="height:20px;border-radius:2px;background:{{ $bg }};color:{{ $color }};border:{{ $border }};font-weight:700;font-size:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;"
                                             title="{{ $code }}: {{ $p ? ($p['Nama Lengkap'] ?? $p['nama'] ?? '') : 'Kosong' }}">
                                         {{ $code }}
                                     </button>
@@ -278,7 +278,7 @@
                     </div>
 
                     {{-- BLOK 2: BLOK TENGAH (TI T26 - T132) --}}
-                    <div style="flex:1;max-width:270px;">
+                    <div style="flex:1;max-width:340px;">
                         <div style="text-align:center;font-size:11px;font-weight:700;color:#94A3B8;margin-bottom:8px;letter-spacing:1px;">
                             BLOK TENGAH
                         </div>
@@ -286,7 +286,7 @@
                             <div style="font-size:9px;font-weight:700;color:#2979FF;text-align:center;margin-bottom:3px;">
                                 TEKNIK INFORMATIKA (T26 - T132)
                             </div>
-                            <div style="display:grid;grid-template-columns:repeat(6, 1fr);gap:3px;">
+                            <div style="display:grid;grid-template-columns:repeat(11, 1fr);gap:2px;">
                                 @for($i = 26; $i <= 132; $i++)
                                     @php
                                         $code = "T{$i}";
@@ -300,7 +300,7 @@
                                     @endphp
                                     <button type="button"
                                             onclick="inspectSeat('{{ $code }}', '{{ $p ? addslashes($p['Nama Lengkap'] ?? $p['nama'] ?? '') : '' }}', '{{ $p ? ($p['NIM'] ?? '') : '' }}', 'Teknik Informatika', '{{ $p ? (!empty($p['Waktu Kehadiran']) ? 'Hadir' : 'Belum Hadir') : 'Kosong' }}')"
-                                            style="height:22px;border-radius:3px;background:{{ $bg }};color:{{ $color }};border:{{ $border }};font-weight:700;font-size:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;"
+                                            style="height:20px;border-radius:2px;background:{{ $bg }};color:{{ $color }};border:{{ $border }};font-weight:700;font-size:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;"
                                             title="{{ $code }}: {{ $p ? ($p['Nama Lengkap'] ?? $p['nama'] ?? '') : 'Kosong' }}">
                                         {{ $code }}
                                     </button>
@@ -310,7 +310,7 @@
                     </div>
 
                     {{-- BLOK 3: BLOK KANAN (TI T133 - T239) --}}
-                    <div style="flex:1;max-width:270px;">
+                    <div style="flex:1;max-width:340px;">
                         <div style="text-align:center;font-size:11px;font-weight:700;color:#94A3B8;margin-bottom:8px;letter-spacing:1px;">
                             BLOK KANAN
                         </div>
@@ -318,7 +318,7 @@
                             <div style="font-size:9px;font-weight:700;color:#2979FF;text-align:center;margin-bottom:3px;">
                                 TEKNIK INFORMATIKA (T133 - T239)
                             </div>
-                            <div style="display:grid;grid-template-columns:repeat(6, 1fr);gap:3px;">
+                            <div style="display:grid;grid-template-columns:repeat(11, 1fr);gap:2px;">
                                 @for($i = 133; $i <= 239; $i++)
                                     @php
                                         $code = "T{$i}";
@@ -332,7 +332,7 @@
                                     @endphp
                                     <button type="button"
                                             onclick="inspectSeat('{{ $code }}', '{{ $p ? addslashes($p['Nama Lengkap'] ?? $p['nama'] ?? '') : '' }}', '{{ $p ? ($p['NIM'] ?? '') : '' }}', 'Teknik Informatika', '{{ $p ? (!empty($p['Waktu Kehadiran']) ? 'Hadir' : 'Belum Hadir') : 'Kosong' }}')"
-                                            style="height:22px;border-radius:3px;background:{{ $bg }};color:{{ $color }};border:{{ $border }};font-weight:700;font-size:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;"
+                                            style="height:20px;border-radius:2px;background:{{ $bg }};color:{{ $color }};border:{{ $border }};font-weight:700;font-size:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;"
                                             title="{{ $code }}: {{ $p ? ($p['Nama Lengkap'] ?? $p['nama'] ?? '') : 'Kosong' }}">
                                         {{ $code }}
                                     </button>
@@ -342,6 +342,7 @@
                     </div>
 
                 </div>
+
 
             </div>
         </div>

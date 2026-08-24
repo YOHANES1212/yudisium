@@ -60,9 +60,27 @@
             background: var(--color-sidebar-bg);
             display: flex;
             flex-direction: column;
-            z-index: 1000;
+            z-index: 1005;
             transition: transform 0.3s ease;
         }
+
+        /* ── Responsive Sidebar & Mobile Layout ── */
+        @media (max-width: 991.98px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.open {
+                transform: translateX(0);
+                box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+            }
+            .main-wrapper {
+                margin-left: 0 !important;
+            }
+            .topbar {
+                padding: 0 16px;
+            }
+        }
+
 
         .sidebar-brand {
             padding: 0 20px;
@@ -779,34 +797,40 @@
         <div class="nav-section-label">Menu Utama</div>
 
         <a href="{{ route('admin.dashboard') }}"
+           onclick="closeSidebar()"
            class="nav-item-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
             <i class="bi bi-grid-1x2-fill"></i>
             Dashboard
         </a>
 
         <a href="{{ route('admin.peserta') }}"
+           onclick="closeSidebar()"
            class="nav-item-link {{ request()->routeIs('admin.peserta*') ? 'active' : '' }}">
             <i class="bi bi-people-fill"></i>
             Data Peserta
         </a>
 
         <a href="{{ route('admin.plotting') }}"
+           onclick="closeSidebar()"
            class="nav-item-link {{ request()->routeIs('admin.plotting*') ? 'active' : '' }}">
             <i class="bi bi-layout-three-columns"></i>
             Plotting Kursi
         </a>
 
         <a href="{{ route('admin.absensi') }}"
+           onclick="closeSidebar()"
            class="nav-item-link {{ request()->routeIs('admin.absensi*') ? 'active' : '' }}">
             <i class="bi bi-qr-code-scan"></i>
             Scan Absensi
         </a>
 
         <a href="{{ route('admin.logs') }}"
+           onclick="closeSidebar()"
            class="nav-item-link {{ request()->routeIs('admin.logs*') ? 'active' : '' }}">
             <i class="bi bi-journal-text"></i>
             Log Scan Panitia
         </a>
+
 
         <div class="nav-section-label">Laporan</div>
 
