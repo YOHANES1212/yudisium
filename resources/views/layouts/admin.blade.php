@@ -60,17 +60,35 @@
             background: var(--color-sidebar-bg);
             display: flex;
             flex-direction: column;
-            z-index: 1005;
+            z-index: 1050;
             transition: transform 0.3s ease;
         }
 
-        /* ── Responsive Sidebar & Mobile Layout ── */
+        .main-wrapper {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: margin-left 0.3s ease;
+        }
+
+        /* ── Desktop Sidebar Collapsed State (>= 992px) ── */
+        @media (min-width: 992px) {
+            body.sidebar-collapsed .sidebar {
+                transform: translateX(-100%) !important;
+            }
+            body.sidebar-collapsed .main-wrapper {
+                margin-left: 0 !important;
+            }
+        }
+
+        /* ── Mobile & Tablet Layout (< 992px) ── */
         @media (max-width: 991.98px) {
             .sidebar {
                 transform: translateX(-100%);
             }
             .sidebar.open {
-                transform: translateX(0);
+                transform: translateX(0) !important;
                 box-shadow: 10px 0 30px rgba(0,0,0,0.5);
             }
             .main-wrapper {
@@ -80,6 +98,7 @@
                 padding: 0 16px;
             }
         }
+
 
 
         .sidebar-brand {
@@ -882,8 +901,8 @@
     <!-- Topbar -->
     <header class="topbar">
         <div class="topbar-left">
-            <!-- Mobile toggle -->
-            <button class="topbar-btn icon-only d-lg-none" onclick="toggleSidebar()" title="Buka Menu">
+            <!-- Sidebar toggle button -->
+            <button class="topbar-btn icon-only" onclick="toggleSidebar()" title="Buka/Tutup Menu Sidebar">
                 <i class="bi bi-list fs-5"></i>
             </button>
 
@@ -1016,15 +1035,30 @@
 
 <script>
     function toggleSidebar() {
+        const isMobile = window.innerWidth < 992;
         const sidebar  = document.getElementById('sidebar');
         const overlay  = document.getElementById('sidebarOverlay');
-        sidebar.classList.toggle('open');
-        overlay.classList.toggle('d-none');
+        const body     = document.body;
+
+        if (isMobile) {
+            sidebar.classList.toggle('open');
+            if (overlay) {
+                overlay.classList.toggle('d-none');
+            }
+        } else {
+            body.classList.toggle('sidebar-collapsed');
+        }
     }
+
     function closeSidebar() {
-        document.getElementById('sidebar').classList.remove('open');
-        document.getElementById('sidebarOverlay').classList.add('d-none');
+        if (window.innerWidth < 992) {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (sidebar) sidebar.classList.remove('open');
+            if (overlay) overlay.classList.add('d-none');
+        }
     }
+
 
     function openProfileModal() {
         new bootstrap.Modal(document.getElementById('profileModal')).show();
