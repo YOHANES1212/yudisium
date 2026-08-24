@@ -104,7 +104,7 @@
 
 <div class="row g-3">
     {{-- ── Canvas Denah Presisi Layout Visual (Dark Theme) ───────── --}}
-    <div class="col-12 col-lg-8">
+    <div class="col-12 col-xl-8">
         <div class="data-card" style="background:#0B0F19;border:1px solid #1E293B;color:#fff;">
             <div class="data-card-header" style="border-bottom:1px solid #1E293B;">
                 <div class="data-card-title text-white">
@@ -349,7 +349,7 @@
     </div>
 
     {{-- ── Manual Assign Form / Unassigned List ───────────────── --}}
-    <div class="col-12 col-lg-4">
+    <div class="col-12 col-xl-4">
         <div class="data-card">
             <div class="data-card-header">
                 <div class="data-card-title" style="font-size:14px;">
@@ -552,6 +552,8 @@
         </div>
     </div>
 </div>
+
+@endsection
 
 @push('scripts')
 <script>
