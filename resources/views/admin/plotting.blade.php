@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 
 @section('title', 'Plotting Kursi')
-@section('page-title', 'Denah & Auto-Floating Bangku Yudisium (320 Kursi)')
+@section('page-title', 'Denah & Auto-Floating Bangku Yudisium (322 Kursi)')
 @section('breadcrumb', 'Plotting Kursi')
 
 @section('content')
@@ -24,26 +24,29 @@
 @endif
 
 {{-- ── Banner Auto-Floating ────────────────────────────────── --}}
-<div style="background:linear-gradient(135deg, #1E1B4B, #4F46E5);color:#fff;border-radius:16px;padding:20px 24px;margin-bottom:24px;box-shadow:0 8px 20px rgba(79, 70, 229, 0.2);">
+<div style="background:linear-gradient(135deg, #0F172A, #1E1B4B, #312E81);color:#fff;border-radius:16px;padding:20px 24px;margin-bottom:24px;box-shadow:0 8px 20px rgba(15, 23, 42, 0.4);">
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
-        <div style="max-width:680px;">
-            <div class="d-flex align-items-center gap-2 mb-2">
-                <span class="badge" style="background:rgba(255,255,255,0.2);color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;letter-spacing:0.5px;">
-                    👑 VIP MAGISTER (MIK-01..20) | SI (SI-01..150) | TI (TI-01..150)
+        <div style="max-width:720px;">
+            <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                <span class="badge" style="background:#00C853;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;">
+                    🟢 MAGISTER (M1 - M12)
                 </span>
-                <span style="font-size:12px;opacity:0.8;">• Total Kapasitas: 320 Bangku (20 MIK | 150 SI | 150 TI)</span>
+                <span class="badge" style="background:#FF9100;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;">
+                    🟠 SISTEM INFORMASI (S1 - S71)
+                </span>
+                <span class="badge" style="background:#0026CA;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;">
+                    🔵 TEKNIK INFORMATIKA (T1 - T239)
+                </span>
             </div>
-            <h5 class="fw-bold mb-1" style="font-size:18px;">Denah Tempat Duduk Yudisium</h5>
+            <h5 class="fw-bold mb-1" style="font-size:18px;">Denah Tempat Duduk Yudisium (Kapasitas: 322 Bangku)</h5>
             <p class="mb-0" style="font-size:13px;opacity:0.9;line-height:1.5;">
-                <strong style="color:#FDE047;">👑 Magister (Baris VIP Terdepan)</strong>: Kode <strong>MIK-01 s/d MIK-20</strong>.<br>
-                <strong style="color:#A7F3D0;">Sistem Informasi (Sayap Kiri)</strong>: Kode <strong>SI-01 s/d SI-150</strong>.<br>
-                <strong style="color:#BAE6FD;">Teknik Informatika (Sayap Kanan)</strong>: Kode <strong>TI-01 s/d TI-150</strong>.<br>
-                <small class="opacity-75">💡 Terdapat <strong>Jalur Tengah / Gang Utama</strong> di antara Sayap SI dan TI. Klik bangku terisi untuk edit/hapus.</small>
+                ⚡ <strong>Auto-Floating Pinter</strong>: Mengurutkan peserta secara otomatis berdasarkan <strong>NIM (Ascending)</strong> per Program Studi.<br>
+                <small class="opacity-75">Contoh: NIM TI (<code>20220801001</code>) &rarr; <strong>T1</strong> | NIM SI (<code>20220803001</code>) &rarr; <strong>S1</strong> | NIM Magister (<code>20240804001</code>) &rarr; <strong>M1</strong>.</small>
             </p>
         </div>
         <div class="d-flex align-items-center gap-2">
-            <button type="button" class="btn btn-light" onclick="openAutoPlotModal()" style="font-size:13px;font-weight:700;color:var(--color-primary);border-radius:10px;padding:10px 18px;">
-                <i class="bi bi-lightning-fill text-warning me-1"></i> Plotting Otomatis
+            <button type="button" class="btn btn-warning text-dark fw-bold" onclick="openAutoPlotModal()" style="font-size:13px;border-radius:10px;padding:10px 18px;box-shadow:0 4px 12px rgba(245,158,11,0.3);">
+                <i class="bi bi-lightning-fill me-1"></i> Plotting Urut NIM
             </button>
             <button type="button" class="btn btn-outline-light" onclick="confirmResetPlotting()" style="font-size:13px;border-radius:10px;padding:10px 14px;opacity:0.85;">
                 <i class="bi bi-arrow-counterclockwise"></i> Reset All
@@ -59,8 +62,8 @@
             <div class="stat-icon primary"><i class="bi bi-layout-three-columns"></i></div>
             <div class="stat-info">
                 <div class="stat-value">{{ $totalAssigned }}</div>
-                <div class="stat-label">Kursi Terisi / Terplot</div>
-                <div class="stat-change up"><i class="bi bi-check2"></i> Dari {{ count($pesertaList) }} peserta</div>
+                <div class="stat-label">Bangku Terisi / Terplot</div>
+                <div class="stat-change up"><i class="bi bi-check2"></i> Dari {{ count($pesertaList) }} Peserta</div>
             </div>
         </div>
     </div>
@@ -71,7 +74,7 @@
             <div class="stat-info">
                 <div class="stat-value">{{ $totalHadir }}</div>
                 <div class="stat-label">Hadir di Bangku</div>
-                <div class="stat-change up"><i class="bi bi-qr-code"></i> Kehadiran Terverifikasi</div>
+                <div class="stat-change up"><i class="bi bi-qr-code"></i> Presensi Valid</div>
             </div>
         </div>
     </div>
@@ -81,8 +84,8 @@
             <div class="stat-icon warning"><i class="bi bi-exclamation-circle-fill"></i></div>
             <div class="stat-info">
                 <div class="stat-value">{{ count($unassigned) }}</div>
-                <div class="stat-label">Belum Punya Kursi</div>
-                <div class="stat-change down"><i class="bi bi-clock"></i> Auto saat Valid</div>
+                <div class="stat-label">Belum Ada Bangku</div>
+                <div class="stat-change down"><i class="bi bi-clock"></i> Belum Di-plot</div>
             </div>
         </div>
     </div>
@@ -91,167 +94,260 @@
         <div class="stat-card">
             <div class="stat-icon info"><i class="bi bi-grid-3x3-gap-fill"></i></div>
             <div class="stat-info">
-                <div class="stat-value">320</div>
-                <div class="stat-label">Kapasitas Gedung</div>
-                <div class="stat-change up"><i class="bi bi-building"></i> {{ $totalMik ?? 0 }} MIK · {{ $totalSi ?? 0 }} SI · {{ $totalTi ?? 0 }} TI</div>
+                <div class="stat-value">322</div>
+                <div class="stat-label">Total Kapasitas Gedung</div>
+                <div class="stat-change up"><i class="bi bi-building"></i> 12 M · 71 S · 239 T</div>
             </div>
         </div>
     </div>
 </div>
 
 <div class="row g-3">
-    {{-- ── Denah Presisi 3 Sektor (VIP MIK, Sayap SI, Sayap TI) ───── --}}
+    {{-- ── Canvas Denah Presisi Layout Visual (Dark Theme) ───────── --}}
     <div class="col-12 col-lg-8">
-        <div class="data-card">
-            <div class="data-card-header">
-                <div class="data-card-title">
-                    <i class="bi bi-grid-3x3-gap me-2 text-primary"></i>
+        <div class="data-card" style="background:#0B0F19;border:1px solid #1E293B;color:#fff;">
+            <div class="data-card-header" style="border-bottom:1px solid #1E293B;">
+                <div class="data-card-title text-white">
+                    <i class="bi bi-grid-3x3-gap me-2 text-warning"></i>
                     Denah Tempat Duduk Yudisium
                 </div>
-                <div style="display:flex;gap:12px;font-size:12px;align-items:center;flex-wrap:wrap;">
-                    <span style="display:inline-flex;align-items:center;gap:4px;">
-                        <span style="width:12px;height:12px;border-radius:4px;background:#F59E0B;display:inline-block;"></span> VIP Magister
+                <div style="display:flex;gap:14px;font-size:12px;align-items:center;flex-wrap:wrap;">
+                    <span style="display:inline-flex;align-items:center;gap:5px;">
+                        <span style="width:14px;height:14px;border-radius:3px;background:#00C853;display:inline-block;"></span> Magister (M)
                     </span>
-                    <span style="display:inline-flex;align-items:center;gap:4px;">
-                        <span style="width:12px;height:12px;border-radius:4px;background:#10B981;display:inline-block;"></span> Hadir (Occupied)
+                    <span style="display:inline-flex;align-items:center;gap:5px;">
+                        <span style="width:14px;height:14px;border-radius:3px;background:#FF9100;display:inline-block;"></span> Sistem Informasi (S)
                     </span>
-                    <span style="display:inline-flex;align-items:center;gap:4px;">
-                        <span style="width:12px;height:12px;border-radius:4px;background:#4F46E5;display:inline-block;"></span> Terplot (Belum Hadir)
-                    </span>
-                    <span style="display:inline-flex;align-items:center;gap:4px;">
-                        <span style="width:12px;height:12px;border-radius:4px;background:#E5E7EB;display:inline-block;"></span> Kosong
+                    <span style="display:inline-flex;align-items:center;gap:5px;">
+                        <span style="width:14px;height:14px;border-radius:3px;background:#0026CA;display:inline-block;"></span> Teknik Informatika (T)
                     </span>
                 </div>
             </div>
 
-            <div style="padding:20px;overflow-x:auto;">
+            <div style="padding:24px;overflow-x:auto;background:#05070D;">
 
-                {{-- Banner Panggung Utama --}}
-                <div style="background:linear-gradient(135deg, #0F172A, #1E293B);color:#fff;text-align:center;padding:14px;border-radius:14px;font-weight:800;font-size:14px;letter-spacing:1px;margin-bottom:20px;box-shadow:0 4px 10px rgba(0,0,0,0.15);">
-                    🎭 PANGGUNG UTAMA YUDISIUM 🎭
-                </div>
-
-                {{-- 👑 SEKTOR VIP MAGISTER (BARIS TERDEPAN PANGGUNG) --}}
-                <div class="mb-4 style-vip-container" style="background:#FFFBEB;border:2px dashed #F59E0B;border-radius:14px;padding:16px;min-width:840px;">
-                    <div style="text-align:center;font-weight:700;font-size:13px;color:#B45309;margin-bottom:12px;letter-spacing:0.5px;">
-                        👑 SEKTOR VIP MAGISTER ILMU KOMPUTER (BARIS TERDEPAN: MIK-01 s/d MIK-20)
-                    </div>
-                    <div style="display:grid;grid-template-columns:repeat(20, 1fr);gap:4px;">
-                        @foreach($mikCols as $mc)
-                        @php
-                            $displayCode = "MIK-" . str_pad($mc, 2, '0', STR_PAD_LEFT);
-                            $p = $assigned[$displayCode] ?? ($assigned["MIK-{$mc}"] ?? null);
-                            $isOccupied = $p && !empty($p['Waktu Kehadiran']);
-                            $isAssigned = $p !== null;
-
-                            $bg = $isOccupied ? '#10B981' : ($isAssigned ? '#F59E0B' : '#FEF3C7');
-                            $color = $isAssigned ? '#fff' : '#92400E';
-                            $border = $isAssigned ? 'none' : '1px solid #FDE68A';
-                        @endphp
-                        <button type="button"
-                                onclick="inspectSeat('{{ $displayCode }}', '{{ $p ? addslashes($p['Nama Lengkap'] ?? $p['nama'] ?? '') : '' }}', '{{ $p ? ($p['NIM'] ?? '') : '' }}', 'Magister Ilmu Komputer', '{{ $p ? (!empty($p['Waktu Kehadiran']) ? 'Hadir' : 'Belum Hadir') : 'Kosong' }}')"
-                                style="height:38px;border-radius:6px;background:{{ $bg }};color:{{ $color }};border:{{ $border }};font-weight:700;font-size:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;padding:1px;"
-                                title="{{ $displayCode }}: {{ $p ? ($p['Nama Lengkap'] ?? $p['nama'] ?? '') : 'Kosong (Klik untuk atur)' }}">
-                            <span>{{ $displayCode }}</span>
-                        </button>
-                        @endforeach
+                {{-- 🎭 PANGGUNG UTAMA (Top Centered Pill Banner) --}}
+                <div class="d-flex justify-content-center mb-4">
+                    <div style="background:#0047BA;color:#fff;width:340px;text-align:center;padding:10px 0;border-radius:30px;font-weight:800;font-size:14px;letter-spacing:3px;box-shadow:0 4px 18px rgba(0,71,186,0.6);border:1px solid rgba(255,255,255,0.2);">
+                        PANGGUNG
                     </div>
                 </div>
 
-                {{-- Header 2 Sayap (SI & TI) dengan Gang Tengah --}}
-                <div style="display:flex;align-items:center;gap:20px;margin-bottom:12px;min-width:840px;">
-                    <div style="flex:1;background:#EEF2FF;color:#4F46E5;padding:10px;border-radius:10px;font-weight:700;font-size:13px;border:1.5px solid #C7D2FE;text-align:center;">
-                        SISTEM INFORMASI (SI) — 150 Kursi (SI-01 s/d SI-150)
+                {{-- 🟡 VIP ROUND TABLES (6 Meja Bundar VIP Kuning + Kursi) --}}
+                <div class="d-flex justify-content-center gap-5 mb-5 flex-wrap">
+                    {{-- Cluster Meja Kiri (3 Meja) --}}
+                    <div class="d-flex gap-3 align-items-center">
+                        <div style="position:relative;width:54px;height:54px;display:flex;align-items:center;justify-content:center;">
+                            <div style="width:40px;height:40px;border-radius:50%;background:#FFD600;box-shadow:0 0 10px rgba(255,214,0,0.5);"></div>
+                            <span style="position:absolute;top:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                            <span style="position:absolute;bottom:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                            <span style="position:absolute;left:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                            <span style="position:absolute;right:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                        </div>
+                        <div style="position:relative;width:54px;height:54px;display:flex;align-items:center;justify-content:center;">
+                            <div style="width:40px;height:40px;border-radius:50%;background:#FFD600;box-shadow:0 0 10px rgba(255,214,0,0.5);"></div>
+                            <span style="position:absolute;top:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                            <span style="position:absolute;bottom:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                            <span style="position:absolute;left:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                            <span style="position:absolute;right:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                        </div>
+                        <div style="position:relative;width:54px;height:54px;display:flex;align-items:center;justify-content:center;">
+                            <div style="width:40px;height:40px;border-radius:50%;background:#FFD600;box-shadow:0 0 10px rgba(255,214,0,0.5);"></div>
+                            <span style="position:absolute;top:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                            <span style="position:absolute;bottom:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                            <span style="position:absolute;left:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                            <span style="position:absolute;right:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                        </div>
                     </div>
-                    <div style="width:40px;text-align:center;font-size:11px;font-weight:800;color:#9CA3AF;letter-spacing:1px;">
-                        GANG
-                    </div>
-                    <div style="flex:1;background:#ECFDF5;color:#059669;padding:10px;border-radius:10px;font-weight:700;font-size:13px;border:1.5px solid #A7F3D0;text-align:center;">
-                        TEKNIK INFORMATIKA (TI) — 150 Kursi (TI-01 s/d TI-150)
+
+                    {{-- Cluster Meja Kanan (3 Meja) --}}
+                    <div class="d-flex gap-3 align-items-center">
+                        <div style="position:relative;width:54px;height:54px;display:flex;align-items:center;justify-content:center;">
+                            <div style="width:40px;height:40px;border-radius:50%;background:#FFD600;box-shadow:0 0 10px rgba(255,214,0,0.5);"></div>
+                            <span style="position:absolute;top:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                            <span style="position:absolute;bottom:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                            <span style="position:absolute;left:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                            <span style="position:absolute;right:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                        </div>
+                        <div style="position:relative;width:54px;height:54px;display:flex;align-items:center;justify-content:center;">
+                            <div style="width:40px;height:40px;border-radius:50%;background:#FFD600;box-shadow:0 0 10px rgba(255,214,0,0.5);"></div>
+                            <span style="position:absolute;top:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                            <span style="position:absolute;bottom:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                            <span style="position:absolute;left:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                            <span style="position:absolute;right:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                        </div>
+                        <div style="position:relative;width:54px;height:54px;display:flex;align-items:center;justify-content:center;">
+                            <div style="width:40px;height:40px;border-radius:50%;background:#FFD600;box-shadow:0 0 10px rgba(255,214,0,0.5);"></div>
+                            <span style="position:absolute;top:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                            <span style="position:absolute;bottom:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                            <span style="position:absolute;left:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                            <span style="position:absolute;right:-4px;width:10px;height:10px;background:#94A3B8;border-radius:2px;"></span>
+                        </div>
                     </div>
                 </div>
 
-                {{-- Grid Dual Wings SI & TI dengan JALUR TENGAH (GANG UTAMA) --}}
-                <div style="min-width:840px;">
-                    @foreach($rows as $rowIndex => $r)
-                    <div style="display:flex;align-items:center;gap:20px;margin-bottom:6px;">
+                {{-- 🪑 3 BLOK UTAMA TEMPAT DUDUK (BLOK KIRI, TENGAH, KANAN) --}}
+                <div style="display:flex;gap:18px;min-width:820px;justify-content:center;">
 
-                        {{-- SAYAP KIRI (SI - 15 Kolom per Baris) --}}
-                        <div style="flex:1;">
-                            <div style="display:grid;grid-template-columns:repeat(15, 1fr);gap:4px;">
-                                @foreach($cols as $c)
-                                @php
-                                    $siNum = ($rowIndex * 15) + $c;
-                                    $siFormatted = str_pad($siNum, 2, '0', STR_PAD_LEFT);
-                                    $displayCode = "SI-{$siFormatted}";
-                                    $codeGrid = "SI-{$r}" . str_pad($c, 2, '0', STR_PAD_LEFT);
-                                    $codeShort = "{$r}-" . str_pad($c, 2, '0', STR_PAD_LEFT);
+                    {{-- BLOK 1: BLOK KIRI (Magister M1-M12 + SI S1-S71 + TI T1-T25) --}}
+                    <div style="flex:1;max-width:270px;">
+                        <div style="text-align:center;font-size:11px;font-weight:700;color:#94A3B8;margin-bottom:8px;letter-spacing:1px;">
+                            BLOK KIRI
+                        </div>
+                        
+                        {{-- Row Magister (M1 - M12) Hijau --}}
+                        <div class="mb-2" style="background:rgba(0,200,83,0.1);border:1px dashed #00C853;border-radius:6px;padding:4px;">
+                            <div style="font-size:9px;font-weight:700;color:#00C853;text-align:center;margin-bottom:3px;">
+                                MAGISTER (M1 - M12)
+                            </div>
+                            <div style="display:grid;grid-template-columns:repeat(6, 1fr);gap:3px;">
+                                @for($i = 1; $i <= 12; $i++)
+                                    @php
+                                        $code = "M{$i}";
+                                        $p = $assigned[$code] ?? ($assigned["MIK-{$i}"] ?? ($assigned["MIK-".str_pad($i, 2, '0', STR_PAD_LEFT)] ?? null));
+                                        $isOccupied = $p && !empty($p['Waktu Kehadiran']);
+                                        $isAssigned = $p !== null;
 
-                                    $p = $assigned[$displayCode] ?? ($assigned["SI-{$siNum}"] ?? ($assigned[$codeGrid] ?? ($assigned[$codeShort] ?? null)));
-
-                                    $isOccupied = $p && !empty($p['Waktu Kehadiran']);
-                                    $isAssigned = $p !== null;
-
-                                    $bg = $isOccupied ? '#10B981' : ($isAssigned ? '#4F46E5' : '#F3F4F6');
-                                    $color = $isAssigned ? '#fff' : '#4B5563';
-                                    $border = $isAssigned ? 'none' : '1px solid #E5E7EB';
-                                @endphp
-
-                                <button type="button"
-                                        onclick="inspectSeat('{{ $displayCode }}', '{{ $p ? addslashes($p['Nama Lengkap'] ?? $p['nama'] ?? '') : '' }}', '{{ $p ? ($p['NIM'] ?? '') : '' }}', 'Sistem Informasi', '{{ $p ? (!empty($p['Waktu Kehadiran']) ? 'Hadir' : 'Belum Hadir') : 'Kosong' }}')"
-                                        style="height:36px;border-radius:6px;background:{{ $bg }};color:{{ $color }};border:{{ $border }};font-weight:700;font-size:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;padding:1px;"
-                                        title="{{ $displayCode }}: {{ $p ? ($p['Nama Lengkap'] ?? $p['nama'] ?? '') : 'Kosong (Klik untuk atur)' }}">
-                                    <span>{{ $displayCode }}</span>
-                                </button>
-                                @endforeach
+                                        $bg = $isAssigned ? '#00C853' : '#0F291E';
+                                        $color = $isAssigned ? '#ffffff' : '#4ADE80';
+                                        $border = $isOccupied ? '2px solid #00E676' : ($isAssigned ? 'none' : '1px solid #15803D');
+                                    @endphp
+                                    <button type="button"
+                                            onclick="inspectSeat('{{ $code }}', '{{ $p ? addslashes($p['Nama Lengkap'] ?? $p['nama'] ?? '') : '' }}', '{{ $p ? ($p['NIM'] ?? '') : '' }}', 'Magister Ilmu Komputer', '{{ $p ? (!empty($p['Waktu Kehadiran']) ? 'Hadir' : 'Belum Hadir') : 'Kosong' }}')"
+                                            style="height:22px;border-radius:3px;background:{{ $bg }};color:{{ $color }};border:{{ $border }};font-weight:700;font-size:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;"
+                                            title="{{ $code }}: {{ $p ? ($p['Nama Lengkap'] ?? $p['nama'] ?? '') : 'Kosong' }}">
+                                        {{ $code }}
+                                    </button>
+                                @endfor
                             </div>
                         </div>
 
-                        {{-- 🚶 JALUR TENGAH / GANG UTAMA 🚶 --}}
-                        <div style="width:40px;background:#F1F5F9;border:1px dashed #CBD5E1;border-radius:6px;height:36px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#64748B;">
-                            🚶
-                        </div>
+                        {{-- Grid Sistem Informasi (S1 - S71) Orange --}}
+                        <div class="mb-2" style="background:rgba(255,145,0,0.1);border:1px dashed #FF9100;border-radius:6px;padding:4px;">
+                            <div style="font-size:9px;font-weight:700;color:#FF9100;text-align:center;margin-bottom:3px;">
+                                SISTEM INFORMASI (S1 - S71)
+                            </div>
+                            <div style="display:grid;grid-template-columns:repeat(6, 1fr);gap:3px;">
+                                @for($i = 1; $i <= 71; $i++)
+                                    @php
+                                        $code = "S{$i}";
+                                        $p = $assigned[$code] ?? ($assigned["SI-{$i}"] ?? ($assigned["SI-".str_pad($i, 2, '0', STR_PAD_LEFT)] ?? null));
+                                        $isOccupied = $p && !empty($p['Waktu Kehadiran']);
+                                        $isAssigned = $p !== null;
 
-                        {{-- SAYAP KANAN (TI - 15 Kolom per Baris) --}}
-                        <div style="flex:1;">
-                            <div style="display:grid;grid-template-columns:repeat(15, 1fr);gap:4px;">
-                                @foreach($cols as $c)
-                                @php
-                                    $tiNum = ($rowIndex * 15) + $c;
-                                    $tiFormatted = str_pad($tiNum, 2, '0', STR_PAD_LEFT);
-                                    $displayCode = "TI-{$tiFormatted}";
-                                    $codeGrid = "TI-{$r}" . str_pad($c, 2, '0', STR_PAD_LEFT);
-                                    $codeShort = "{$r}-" . str_pad($c, 2, '0', STR_PAD_LEFT);
-
-                                    $p = $assigned[$displayCode] ?? ($assigned["TI-{$tiNum}"] ?? ($assigned[$codeGrid] ?? ($assigned[$codeShort] ?? null)));
-
-                                    $isOccupied = $p && !empty($p['Waktu Kehadiran']);
-                                    $isAssigned = $p !== null;
-
-                                    $bg = $isOccupied ? '#10B981' : ($isAssigned ? '#4F46E5' : '#F3F4F6');
-                                    $color = $isAssigned ? '#fff' : '#4B5563';
-                                    $border = $isAssigned ? 'none' : '1px solid #E5E7EB';
-                                @endphp
-
-                                <button type="button"
-                                        onclick="inspectSeat('{{ $displayCode }}', '{{ $p ? addslashes($p['Nama Lengkap'] ?? $p['nama'] ?? '') : '' }}', '{{ $p ? ($p['NIM'] ?? '') : '' }}', 'Teknik Informatika', '{{ $p ? (!empty($p['Waktu Kehadiran']) ? 'Hadir' : 'Belum Hadir') : 'Kosong' }}')"
-                                        style="height:36px;border-radius:6px;background:{{ $bg }};color:{{ $color }};border:{{ $border }};font-weight:700;font-size:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;padding:1px;"
-                                        title="{{ $displayCode }}: {{ $p ? ($p['Nama Lengkap'] ?? $p['nama'] ?? '') : 'Kosong (Klik untuk atur)' }}">
-                                    <span>{{ $displayCode }}</span>
-                                </button>
-                                @endforeach
+                                        $bg = $isAssigned ? '#FF9100' : '#2A1D0F';
+                                        $color = $isAssigned ? '#ffffff' : '#FB923C';
+                                        $border = $isOccupied ? '2px solid #FFAB40' : ($isAssigned ? 'none' : '1px solid #C2410C');
+                                    @endphp
+                                    <button type="button"
+                                            onclick="inspectSeat('{{ $code }}', '{{ $p ? addslashes($p['Nama Lengkap'] ?? $p['nama'] ?? '') : '' }}', '{{ $p ? ($p['NIM'] ?? '') : '' }}', 'Sistem Informasi', '{{ $p ? (!empty($p['Waktu Kehadiran']) ? 'Hadir' : 'Belum Hadir') : 'Kosong' }}')"
+                                            style="height:22px;border-radius:3px;background:{{ $bg }};color:{{ $color }};border:{{ $border }};font-weight:700;font-size:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;"
+                                            title="{{ $code }}: {{ $p ? ($p['Nama Lengkap'] ?? $p['nama'] ?? '') : 'Kosong' }}">
+                                        {{ $code }}
+                                    </button>
+                                @endfor
                             </div>
                         </div>
 
+                        {{-- Section TI Kiri (T1 - T25) Biru --}}
+                        <div style="background:rgba(0,38,202,0.1);border:1px dashed #0026CA;border-radius:6px;padding:4px;">
+                            <div style="font-size:9px;font-weight:700;color:#2979FF;text-align:center;margin-bottom:3px;">
+                                TEKNIK INFORMATIKA (T1 - T25)
+                            </div>
+                            <div style="display:grid;grid-template-columns:repeat(6, 1fr);gap:3px;">
+                                @for($i = 1; $i <= 25; $i++)
+                                    @php
+                                        $code = "T{$i}";
+                                        $p = $assigned[$code] ?? ($assigned["TI-{$i}"] ?? ($assigned["TI-".str_pad($i, 2, '0', STR_PAD_LEFT)] ?? null));
+                                        $isOccupied = $p && !empty($p['Waktu Kehadiran']);
+                                        $isAssigned = $p !== null;
+
+                                        $bg = $isAssigned ? '#0026CA' : '#0B163B';
+                                        $color = $isAssigned ? '#ffffff' : '#60A5FA';
+                                        $border = $isOccupied ? '2px solid #2979FF' : ($isAssigned ? 'none' : '1px solid #1D4ED8');
+                                    @endphp
+                                    <button type="button"
+                                            onclick="inspectSeat('{{ $code }}', '{{ $p ? addslashes($p['Nama Lengkap'] ?? $p['nama'] ?? '') : '' }}', '{{ $p ? ($p['NIM'] ?? '') : '' }}', 'Teknik Informatika', '{{ $p ? (!empty($p['Waktu Kehadiran']) ? 'Hadir' : 'Belum Hadir') : 'Kosong' }}')"
+                                            style="height:22px;border-radius:3px;background:{{ $bg }};color:{{ $color }};border:{{ $border }};font-weight:700;font-size:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;"
+                                            title="{{ $code }}: {{ $p ? ($p['Nama Lengkap'] ?? $p['nama'] ?? '') : 'Kosong' }}">
+                                        {{ $code }}
+                                    </button>
+                                @endfor
+                            </div>
+                        </div>
                     </div>
-                    @endforeach
+
+                    {{-- BLOK 2: BLOK TENGAH (TI T26 - T132) --}}
+                    <div style="flex:1;max-width:270px;">
+                        <div style="text-align:center;font-size:11px;font-weight:700;color:#94A3B8;margin-bottom:8px;letter-spacing:1px;">
+                            BLOK TENGAH
+                        </div>
+                        <div style="background:rgba(0,38,202,0.1);border:1px dashed #0026CA;border-radius:6px;padding:4px;">
+                            <div style="font-size:9px;font-weight:700;color:#2979FF;text-align:center;margin-bottom:3px;">
+                                TEKNIK INFORMATIKA (T26 - T132)
+                            </div>
+                            <div style="display:grid;grid-template-columns:repeat(6, 1fr);gap:3px;">
+                                @for($i = 26; $i <= 132; $i++)
+                                    @php
+                                        $code = "T{$i}";
+                                        $p = $assigned[$code] ?? ($assigned["TI-{$i}"] ?? ($assigned["TI-".str_pad($i, 2, '0', STR_PAD_LEFT)] ?? null));
+                                        $isOccupied = $p && !empty($p['Waktu Kehadiran']);
+                                        $isAssigned = $p !== null;
+
+                                        $bg = $isAssigned ? '#0026CA' : '#0B163B';
+                                        $color = $isAssigned ? '#ffffff' : '#60A5FA';
+                                        $border = $isOccupied ? '2px solid #2979FF' : ($isAssigned ? 'none' : '1px solid #1D4ED8');
+                                    @endphp
+                                    <button type="button"
+                                            onclick="inspectSeat('{{ $code }}', '{{ $p ? addslashes($p['Nama Lengkap'] ?? $p['nama'] ?? '') : '' }}', '{{ $p ? ($p['NIM'] ?? '') : '' }}', 'Teknik Informatika', '{{ $p ? (!empty($p['Waktu Kehadiran']) ? 'Hadir' : 'Belum Hadir') : 'Kosong' }}')"
+                                            style="height:22px;border-radius:3px;background:{{ $bg }};color:{{ $color }};border:{{ $border }};font-weight:700;font-size:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;"
+                                            title="{{ $code }}: {{ $p ? ($p['Nama Lengkap'] ?? $p['nama'] ?? '') : 'Kosong' }}">
+                                        {{ $code }}
+                                    </button>
+                                @endfor
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- BLOK 3: BLOK KANAN (TI T133 - T239) --}}
+                    <div style="flex:1;max-width:270px;">
+                        <div style="text-align:center;font-size:11px;font-weight:700;color:#94A3B8;margin-bottom:8px;letter-spacing:1px;">
+                            BLOK KANAN
+                        </div>
+                        <div style="background:rgba(0,38,202,0.1);border:1px dashed #0026CA;border-radius:6px;padding:4px;">
+                            <div style="font-size:9px;font-weight:700;color:#2979FF;text-align:center;margin-bottom:3px;">
+                                TEKNIK INFORMATIKA (T133 - T239)
+                            </div>
+                            <div style="display:grid;grid-template-columns:repeat(6, 1fr);gap:3px;">
+                                @for($i = 133; $i <= 239; $i++)
+                                    @php
+                                        $code = "T{$i}";
+                                        $p = $assigned[$code] ?? ($assigned["TI-{$i}"] ?? ($assigned["TI-".str_pad($i, 2, '0', STR_PAD_LEFT)] ?? null));
+                                        $isOccupied = $p && !empty($p['Waktu Kehadiran']);
+                                        $isAssigned = $p !== null;
+
+                                        $bg = $isAssigned ? '#0026CA' : '#0B163B';
+                                        $color = $isAssigned ? '#ffffff' : '#60A5FA';
+                                        $border = $isOccupied ? '2px solid #2979FF' : ($isAssigned ? 'none' : '1px solid #1D4ED8');
+                                    @endphp
+                                    <button type="button"
+                                            onclick="inspectSeat('{{ $code }}', '{{ $p ? addslashes($p['Nama Lengkap'] ?? $p['nama'] ?? '') : '' }}', '{{ $p ? ($p['NIM'] ?? '') : '' }}', 'Teknik Informatika', '{{ $p ? (!empty($p['Waktu Kehadiran']) ? 'Hadir' : 'Belum Hadir') : 'Kosong' }}')"
+                                            style="height:22px;border-radius:3px;background:{{ $bg }};color:{{ $color }};border:{{ $border }};font-weight:700;font-size:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;"
+                                            title="{{ $code }}: {{ $p ? ($p['Nama Lengkap'] ?? $p['nama'] ?? '') : 'Kosong' }}">
+                                        {{ $code }}
+                                    </button>
+                                @endfor
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
 
             </div>
         </div>
     </div>
 
-    {{-- ── Quick Manual Assign Form / Unassigned List ───────────────── --}}
+    {{-- ── Manual Assign Form / Unassigned List ───────────────── --}}
     <div class="col-12 col-lg-4">
         <div class="data-card">
             <div class="data-card-header">
@@ -275,9 +371,9 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label" style="font-size:12px;font-weight:600;">Nomor Bangku (misal: MIK-01, SI-01, TI-01)</label>
-                        <input type="text" name="nomor_kursi" id="quickNomorKursi" class="form-control" placeholder="Contoh: MIK-01, SI-01 atau TI-05" style="font-size:13px;" required uppercase>
-                        <small class="text-muted" style="font-size:11px;">Format: `MIK-01..20` (VIP Magister), `SI-01..150` atau `TI-01..150`.</small>
+                        <label class="form-label" style="font-size:12px;font-weight:600;">Nomor Bangku (misal: M1, S1, T1)</label>
+                        <input type="text" name="nomor_kursi" id="quickNomorKursi" class="form-control" placeholder="Contoh: M1, S5 atau T10" style="font-size:13px;" required uppercase>
+                        <small class="text-muted" style="font-size:11px;">Format: `M1..M12` (Magister), `S1..S71` (SI), `T1..T239` (TI).</small>
                     </div>
 
                     <button type="submit" class="btn-primary-sm w-100 justify-content-center py-2">
@@ -290,7 +386,7 @@
                     <span class="badge bg-warning text-dark">{{ count($unassigned) }}</span>
                 </div>
 
-                <div style="max-height:300px;overflow-y:auto;border:1px solid var(--color-gray-200);border-radius:10px;">
+                <div style="max-height:380px;overflow-y:auto;border:1px solid var(--color-gray-200);border-radius:10px;">
                     @if(empty($unassigned))
                         <div class="text-center py-4 text-muted" style="font-size:12px;">
                             🎉 Semua peserta telah mendapatkan kursi!
@@ -319,7 +415,7 @@
     </div>
 </div>
 
-{{-- ── Modal Plotting Otomatis (Auto Plotting) ──────────────── --}}
+{{-- ── Modal Plotting Otomatis Urut NIM ───────────────────── --}}
 <div class="modal fade" id="autoPlotModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content" style="border-radius:18px;border:none;">
@@ -329,8 +425,8 @@
                         <i class="bi bi-lightning-charge-fill text-warning"></i>
                     </div>
                     <div>
-                        <h6 class="modal-title mb-0" style="font-weight:700;">Resepsionis Pinter Auto-Floating (320 Kursi)</h6>
-                        <small class="text-muted">Plotting massal otomatis sesuai Bangku MIK, SI & TI</small>
+                        <h6 class="modal-title mb-0" style="font-weight:700;">Plotting Urut NIM Otomatis</h6>
+                        <small class="text-muted">Mengalokasikan M1-M12, S1-S71, T1-T239 berdasarkan NIM (Ascending)</small>
                     </div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -340,25 +436,17 @@
                 @csrf
                 <div class="modal-body" style="padding:20px;">
                     <div class="mb-3">
-                        <label class="form-label" style="font-size:13px;font-weight:600;">Format Kode Bangku</label>
-                        <select name="format" class="form-select" style="font-size:13px;">
-                            <option value="prodi_prefix" selected>🎯 Format Prodi: VIP MIK-01..20, SI-01..150 & TI-01..150</option>
-                        </select>
-                        <small class="text-muted" style="font-size:11px;">Magister otomatis mendapat `MIK-01` di depan, anak SI `SI-01`, anak TI `TI-01`.</small>
-                    </div>
-
-                    <div class="mb-3">
                         <label class="form-label" style="font-size:13px;font-weight:600;">Metode Alokasi</label>
                         <div class="form-check mb-2">
                             <input class="form-check-input" type="radio" name="mode" id="modeUnassigned" value="unassigned" checked>
                             <label class="form-check-label" for="modeUnassigned" style="font-size:13px;">
-                                <strong>Hanya Peserta Tanpa Kursi</strong> (Pertahankan bangku yang sudah terplot)
+                                <strong>Hanya Peserta Tanpa Bangku</strong> (Pertahankan bangku yang sudah terplot)
                             </label>
                         </div>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="mode" id="modeReset" value="reset_all">
                             <label class="form-check-label" for="modeReset" style="font-size:13px;">
-                                <strong>Reset & Floating Ulang Seluruh Peserta</strong> (Re-alokasi total dari 01)
+                                <strong>Reset & Plotting Ulang Seluruh Peserta</strong> (Urutkan dari NIM terkecil ke terbesar)
                             </label>
                         </div>
                     </div>
@@ -367,7 +455,7 @@
                 <div class="modal-footer" style="border-top:1px solid var(--color-gray-200);padding:14px 20px;">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal" style="font-size:13px;font-weight:600;">Batal</button>
                     <button type="submit" class="btn-primary-sm" style="padding:8px 18px;">
-                        <i class="bi bi-play-circle-fill me-1"></i> Jalankan Auto-Floating Massal
+                        <i class="bi bi-play-circle-fill me-1"></i> Jalankan Plotting Urut NIM
                     </button>
                 </div>
             </form>
@@ -380,7 +468,7 @@
     @csrf
 </form>
 
-{{-- ── Modal Inspect Kursi (dengan Fitur Hapus Alokasi) ───── --}}
+{{-- ── Modal Inspect Kursi ─────────────────────────────────── --}}
 <div class="modal fade" id="seatModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content" style="border-radius:16px;border:none;">
@@ -390,7 +478,7 @@
             </div>
             <div class="modal-body text-center" style="padding:20px;">
                 <div id="seatBadge" style="width:78px;height:54px;border-radius:12px;background:var(--color-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;margin:0 auto 12px;padding:0 8px;">
-                    SI-01
+                    -
                 </div>
                 <h6 id="seatNama" style="font-weight:700;font-size:15px;margin-bottom:2px;">-</h6>
                 <div id="seatNim" style="font-size:12px;color:var(--color-gray-500);margin-bottom:8px;">-</div>
@@ -489,7 +577,17 @@ function inspectSeat(code, nama, nim, prodi, status) {
     currentSelectedNama = nama;
 
     document.getElementById('seatModalTitle').textContent = 'Detail Bangku ' + code;
-    document.getElementById('seatBadge').textContent = code;
+    
+    const badgeEl = document.getElementById('seatBadge');
+    badgeEl.textContent = code;
+    if (code.startsWith('M')) {
+        badgeEl.style.background = '#00C853';
+    } else if (code.startsWith('S')) {
+        badgeEl.style.background = '#FF9100';
+    } else {
+        badgeEl.style.background = '#0026CA';
+    }
+
     document.getElementById('seatNama').textContent  = nama || 'Kosong / belum terisi';
     document.getElementById('seatNim').textContent   = nim ? (nim + (prodi ? ' · ' + prodi : '')) : 'Bangku belum dialokasikan';
 
@@ -529,5 +627,3 @@ function setQuickAssign(nim) {
 }
 </script>
 @endpush
-
-@endsection

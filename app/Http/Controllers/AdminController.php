@@ -395,35 +395,40 @@ class AdminController extends Controller
 
     /**
      * Dapatkan prefix kode bangku berdasarkan Program Studi.
-     * SI -> Sistem Informasi (SI-01, SI-02...)
-     * TI -> Teknik Informatika / Lainnya (TI-01, TI-02...)
+     * M -> Magister (M1, M2...)
+     * S -> Sistem Informasi (S1, S2...)
+     * T -> Teknik Informatika / Lainnya (T1, T2...)
      */
-    private function getProdiPrefix(string $prodiName): string
+    private function getProdiPrefix(string $prodiName, string $nim = ''): string
     {
         $clean = strtolower(trim($prodiName));
-        if (str_contains($clean, 'magister') || str_contains($clean, 'mik') || str_contains($clean, 's2')) {
-            return 'MIK';
+        $nimClean = trim($nim);
+
+        if (str_contains($clean, 'magister') || str_contains($clean, 'mik') || str_contains($clean, 's2') || str_contains($nimClean, '0804')) {
+            return 'M';
         }
-        if (str_contains($clean, 'sistem') || str_contains($clean, 'si')) {
-            return 'SI';
+        if (str_contains($clean, 'sistem') || str_contains($clean, 'si') || str_contains($nimClean, '0803')) {
+            return 'S';
         }
-        return 'TI';
+        return 'T';
     }
 
     /**
-     * Auto-Floating: Hitung nomor bangku berikutnya untuk SI (SI-01..) atau TI (TI-01..).
+     * Auto-Floating: Hitung nomor bangku berikutnya untuk M (M1..), S (S1..), atau T (T1..).
      */
-    private function generateNextSeatForProdi(string $prodiName, array $pesertaList): string
+    private function generateNextSeatForProdi(string $prodiName, array $pesertaList, string $nim = ''): string
     {
-        $prefix = $this->getProdiPrefix($prodiName);
+        $prefix = $this->getProdiPrefix($prodiName, $nim);
         $maxNum = 0;
 
         // Cek data lokal database
         $dbSeats = PaymentVerification::whereNotNull('nomor_kursi')->pluck('nomor_kursi');
         foreach ($dbSeats as $seat) {
             $seatUpper = strtoupper(trim($seat));
-            if (str_starts_with($seatUpper, $prefix . '-')) {
-                $num = (int) str_replace($prefix . '-', '', $seatUpper);
+            // Cross compatibility for MIK / M, SI- / S, TI- / T
+            $normalizedSeat = str_replace(['MIK-', 'MIK'], 'M', str_replace(['SI-', 'SI'], 'S', str_replace(['TI-', 'TI'], 'T', $seatUpper)));
+            if (str_starts_with($normalizedSeat, $prefix)) {
+                $num = (int) preg_replace('/[^0-9]/', '', substr($normalizedSeat, strlen($prefix)));
                 if ($num > $maxNum) {
                     $maxNum = $num;
                 }
@@ -433,8 +438,9 @@ class AdminController extends Controller
         // Cek data dari sheet
         foreach ($pesertaList as $p) {
             $seatUpper = strtoupper(trim($p['Nomor Kursi'] ?? ''));
-            if (str_starts_with($seatUpper, $prefix . '-')) {
-                $num = (int) str_replace($prefix . '-', '', $seatUpper);
+            $normalizedSeat = str_replace(['MIK-', 'MIK'], 'M', str_replace(['SI-', 'SI'], 'S', str_replace(['TI-', 'TI'], 'T', $seatUpper)));
+            if (str_starts_with($normalizedSeat, $prefix)) {
+                $num = (int) preg_replace('/[^0-9]/', '', substr($normalizedSeat, strlen($prefix)));
                 if ($num > $maxNum) {
                     $maxNum = $num;
                 }
@@ -442,8 +448,9 @@ class AdminController extends Controller
         }
 
         $nextNum = $maxNum + 1;
-        return $prefix . '-' . str_pad($nextNum, 2, '0', STR_PAD_LEFT);
+        return $prefix . $nextNum;
     }
+
 
     /**
      * Hapus / kosongkan alokasi nomor kursi peserta.
@@ -658,8 +665,7 @@ class AdminController extends Controller
      */
     public function autoPlotting(Request $request)
     {
-        $formatMode = $request->input('format', 'prodi_prefix'); // 'prodi_prefix' (TI-01) or 'grid' (A01)
-        $mode       = $request->input('mode', 'unassigned'); // 'unassigned' or 'reset_all'
+        $mode = $request->input('mode', 'unassigned'); // 'unassigned' or 'reset_all'
 
         $pesertaList = $this->fetchAll();
 
@@ -677,92 +683,79 @@ class AdminController extends Controller
             return back()->with('error', 'Tidak ada peserta yang perlu di-plotting.');
         }
 
+        // Group by Prodi Prefix (M, S, T)
+        $mGroup = [];
+        $sGroup = [];
+        $tGroup = [];
+
+        foreach ($targets as $p) {
+            $prodi = trim($p['Program Studi'] ?? '');
+            $nim   = trim($p['NIM'] ?? '');
+            $prefix = $this->getProdiPrefix($prodi, $nim);
+
+            if ($prefix === 'M') {
+                $mGroup[] = $p;
+            } elseif ($prefix === 'S') {
+                $sGroup[] = $p;
+            } else {
+                $tGroup[] = $p;
+            }
+        }
+
+        // Function to sort array of participants by NIM (ascending)
+        $sortByNim = function ($a, $b) {
+            $nimA = preg_replace('/[^0-9]/', '', $a['NIM'] ?? '');
+            $nimB = preg_replace('/[^0-9]/', '', $b['NIM'] ?? '');
+            if ($nimA === '' || $nimB === '') {
+                return strcmp($a['NIM'] ?? '', $b['NIM'] ?? '');
+            }
+            return (int) $nimA <=> (int) $nimB;
+        };
+
+        usort($mGroup, $sortByNim);
+        usort($sGroup, $sortByNim);
+        usort($tGroup, $sortByNim);
+
         $count = 0;
+        $allGroups = [
+            'M' => $mGroup,
+            'S' => $sGroup,
+            'T' => $tGroup,
+        ];
 
-        if ($formatMode === 'prodi_prefix') {
-            // Group by Prodi & Sort so Magister (MIK) gets allocated first (Front VIP seats)
-            $grouped = [];
-            foreach ($targets as $p) {
-                $pr = trim($p['Program Studi'] ?? 'Umum');
-                $grouped[$pr][] = $p;
-            }
+        foreach ($allGroups as $prefix => $pList) {
+            foreach ($pList as $p) {
+                $key = $this->getPesertaKey($p);
+                $nim = trim($p['NIM'] ?? '');
+                $prodiName = trim($p['Program Studi'] ?? '');
 
-            uksort($grouped, function($a, $b) {
-                $aPrefix = $this->getProdiPrefix($a);
-                $bPrefix = $this->getProdiPrefix($b);
-                $order = ['MIK' => 1, 'SI' => 2, 'TI' => 3];
-                return ($order[$aPrefix] ?? 9) <=> ($order[$bPrefix] ?? 9);
-            });
+                $currentList = $this->fetchAll();
+                $seatCode = $this->generateNextSeatForProdi($prodiName, $currentList, $nim);
 
-            foreach ($grouped as $prodiName => $pList) {
-                foreach ($pList as $p) {
-                    $nim = trim($p['NIM'] ?? '');
-                    if (!$nim) continue;
+                PaymentVerification::updateOrCreate(
+                    ['nim' => $key],
+                    ['nomor_kursi' => $seatCode]
+                );
 
-                    $currentList = $this->fetchAll();
-                    $seatCode = $this->generateNextSeatForProdi($prodiName, $currentList);
+                try {
+                    Http::timeout(5)->withoutVerifying()->post($this->sheetdbUrl, [
+                        'nim'     => $nim,
+                        'email'   => $p['Email Address'] ?? $p['Email'] ?? '',
+                        'nama'    => $p['Nama Lengkap'] ?? $p['nama'] ?? '',
+                        'updates' => [
+                            'Nomor Kursi'    => $seatCode,
+                            'Plotting Kursi' => $seatCode,
+                        ],
+                    ]);
+                } catch (\Throwable $e) {}
 
-                    PaymentVerification::updateOrCreate(
-                        ['nim' => $nim],
-                        ['nomor_kursi' => $seatCode]
-                    );
-
-                    try {
-                        Http::timeout(5)->withoutVerifying()->post($this->sheetdbUrl, [
-                            'nim'     => $nim,
-                            'updates' => [
-                                'Nomor Kursi'    => $seatCode,
-                                'Plotting Kursi' => $seatCode,
-                            ],
-                        ]);
-                    } catch (\Throwable $e) {}
-
-                    $count++;
-                }
-            }
-        } else {
-            $rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-            $cols = range(1, 12);
-            $availableSeats = [];
-
-            $existingSeats = [];
-            if ($mode !== 'reset_all') {
-                foreach ($pesertaList as $p) {
-                    $k = trim($p['Nomor Kursi'] ?? '-');
-                    if ($k !== '' && $k !== '-') {
-                        $existingSeats[$k] = true;
-                    }
-                }
-            }
-
-            foreach ($rows as $r) {
-                foreach ($cols as $c) {
-                    $seatCode = $r . str_pad($c, 2, '0', STR_PAD_LEFT);
-                    if (!isset($existingSeats[$seatCode])) {
-                        $availableSeats[] = $seatCode;
-                    }
-                }
-            }
-
-            foreach ($targets as $p) {
-                if (empty($availableSeats)) break;
-
-                $nim      = trim($p['NIM'] ?? '');
-                $seatCode = array_shift($availableSeats);
-
-                if ($nim) {
-                    PaymentVerification::updateOrCreate(
-                        ['nim' => $nim],
-                        ['nomor_kursi' => $seatCode]
-                    );
-                    $count++;
-                }
+                $count++;
             }
         }
 
         $this->fetchFresh();
 
-        return back()->with('success', "⚡ Resepsionis Pinter: Berhasil mengalokasikan bangku otomatis untuk {$count} peserta!");
+        return back()->with('success', "⚡ Resepsionis Pinter: Berhasil mengurutkan berdasarkan NIM & mengalokasikan bangku untuk {$count} peserta (M1-M12, S1-S71, T1-T239)!");
     }
 
     /**
@@ -789,35 +782,33 @@ class AdminController extends Controller
         foreach ($pesertaList as $p) {
             $kursi = trim($p['Nomor Kursi'] ?? '-');
             if ($kursi !== '' && $kursi !== '-') {
+                $upper = strtoupper($kursi);
                 $assigned[$kursi] = $p;
-                $assigned[strtoupper($kursi)] = $p;
-                $cleanCode = str_replace(['-', ' '], '', strtoupper($kursi));
-                $assigned[$cleanCode] = $p;
+                $assigned[$upper] = $p;
+
+                // Normalize MIK-01 -> M1, SI-01 -> S1, TI-01 -> T1
+                $norm = preg_replace('/^MIK-?/i', 'M', preg_replace('/^SI-?/i', 'S', preg_replace('/^TI-?/i', 'T', $upper)));
+                $normNoPad = preg_replace_callback('/([MST])0*([1-9][0-9]*)/', fn($m) => $m[1].$m[2], $norm);
+
+                $assigned[$norm] = $p;
+                $assigned[$normNoPad] = $p;
             } else {
                 $unassigned[] = $p;
             }
         }
 
-        // VIP Row Front (Magister: MIK-01 s/d MIK-20) + 10 Baris (a..j) x 15 Kolom per Sayap (150 SI + 150 TI = 320 Kursi Total)
-        $mikCols = range(1, 20);
-        $rows    = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
-        $cols    = range(1, 15);
-
-        $totalCapacity = 320;
+        $totalCapacity = 322;
         $totalAssigned = count(array_filter($pesertaList, fn($p) => !empty($p['Nomor Kursi']) && $p['Nomor Kursi'] !== '-'));
         $totalHadir    = count(array_filter($pesertaList, fn($p) => !empty($p['Waktu Kehadiran'])));
 
-        $totalMik = count(array_filter($pesertaList, fn($p) => str_starts_with(strtoupper(trim($p['Nomor Kursi'] ?? '')), 'MIK-')));
-        $totalSi  = count(array_filter($pesertaList, fn($p) => str_starts_with(strtoupper(trim($p['Nomor Kursi'] ?? '')), 'SI-')));
-        $totalTi  = count(array_filter($pesertaList, fn($p) => str_starts_with(strtoupper(trim($p['Nomor Kursi'] ?? '')), 'TI-')));
+        $totalMik = count(array_filter($pesertaList, fn($p) => preg_match('/^(M|MIK)/i', trim($p['Nomor Kursi'] ?? ''))));
+        $totalSi  = count(array_filter($pesertaList, fn($p) => preg_match('/^(S|SI)/i', trim($p['Nomor Kursi'] ?? ''))));
+        $totalTi  = count(array_filter($pesertaList, fn($p) => preg_match('/^(T|TI)/i', trim($p['Nomor Kursi'] ?? ''))));
 
         return view('admin.plotting', compact(
             'pesertaList',
             'assigned',
             'unassigned',
-            'mikCols',
-            'rows',
-            'cols',
             'totalCapacity',
             'totalAssigned',
             'totalHadir',
