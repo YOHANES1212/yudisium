@@ -539,10 +539,20 @@ class AdminController extends Controller
             $pEmail = trim($pesertaItem['Email Address'] ?? $pesertaItem['Email'] ?? '');
             $pNama  = trim($pesertaItem['Nama Lengkap'] ?? $pesertaItem['nama'] ?? '');
 
+            $updates = [
+                'Status Pembayaran'  => $status,
+                'Status Pembayaran ' => $status,
+            ];
+            if ($kursiAuto) {
+                $updates['Nomor Kursi']    = $kursiAuto;
+                $updates['Plotting Kursi'] = $kursiAuto;
+            }
+
             $postPayload = [
                 'status'             => $status,
                 'Status Pembayaran'  => $status,
                 'Status Pembayaran ' => $status,
+                'updates'            => $updates,
             ];
             if ($pNim !== '' && $pNim !== '-') {
                 $postPayload['nim'] = $pNim;
@@ -568,6 +578,7 @@ class AdminController extends Controller
             }
 
             Http::timeout(30)->withoutVerifying()->post($this->sheetdbUrl, $postPayload);
+
         } catch (\Throwable $e) {}
 
         $this->fetchFresh();
