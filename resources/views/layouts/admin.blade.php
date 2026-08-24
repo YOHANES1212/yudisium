@@ -621,8 +621,140 @@
             .topbar-btn span { display: none; }
             .topbar-avatar span { display: none; }
         }
+
+        /* ── Participant Mobile Cards & Action Buttons ── */
+        .peserta-card-mobile {
+            background: #ffffff;
+            border: 1px solid var(--color-gray-200);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .peserta-card-mobile:active {
+            transform: scale(0.995);
+        }
+        .peserta-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--color-gray-100);
+            margin-bottom: 12px;
+        }
+        .peserta-avatar-mobile {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
+            color: var(--color-primary);
+            font-weight: 700;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .peserta-info-block {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            padding: 10px 12px;
+            background: var(--color-gray-50);
+            border-radius: 10px;
+            margin-bottom: 12px;
+            font-size: 12px;
+        }
+        .peserta-action-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+        .btn-action-mobile {
+            min-height: 42px;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            flex: 1;
+            min-width: 100px;
+        }
+        .btn-action-mobile:active {
+            transform: scale(0.97);
+        }
+        .btn-action-mobile-sm {
+            min-height: 38px;
+            padding: 6px 12px;
+            font-size: 12px;
+            flex: 0 0 auto;
+        }
+        .btn-valid-action {
+            background: #10B981;
+            color: #ffffff !important;
+            box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+        }
+        .btn-valid-action:hover, .btn-valid-action:focus {
+            background: #059669;
+            color: #ffffff !important;
+        }
+        .btn-reject-action {
+            background: #FEE2E2;
+            color: #DC2626 !important;
+            border: 1px solid #FCA5A5;
+        }
+        .btn-reject-action:hover {
+            background: #FCA5A5;
+            color: #991B1B !important;
+        }
+        .btn-cancel-valid-action {
+            background: #FEF3C7;
+            color: #D97706 !important;
+            border: 1px solid #FDE68A;
+        }
+        .btn-cancel-valid-action:hover {
+            background: #FDE68A;
+            color: #B45309 !important;
+        }
+        .btn-hadir-action {
+            background: #4F46E5;
+            color: #ffffff !important;
+            box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
+        }
+        .btn-hadir-action:hover {
+            background: #4338CA;
+            color: #ffffff !important;
+        }
+        .btn-batal-hadir-action {
+            background: #F3F4F6;
+            color: #EF4444 !important;
+            border: 1px solid #E5E7EB;
+        }
+        .btn-batal-hadir-action:hover {
+            background: #FEE2E2;
+        }
+        .btn-proof-action {
+            background: #F3F4F6;
+            color: #374151 !important;
+            border: 1px solid #E5E7EB;
+        }
+        .btn-proof-action:hover {
+            background: #E5E7EB;
+            color: #111827 !important;
+        }
     </style>
 </head>
+
 <body>
 
 <!-- Sidebar Overlay (mobile) -->

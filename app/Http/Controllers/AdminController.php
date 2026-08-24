@@ -18,6 +18,7 @@ class AdminController extends Controller
 
     public function __construct()
     {
+        @set_time_limit(120);
         $url = config('services.sheetdb.url', env('SHEETDB_URL', 'https://sheetdb.io/api/v1/71445zve8u6f7'));
         if (str_starts_with($url, '//')) {
             $url = 'https:' . $url;
@@ -33,7 +34,7 @@ class AdminController extends Controller
     private function fetchAll(): array
     {
         return Cache::remember('sheetdb_peserta', 60, function () {
-            $response = Http::timeout(10)
+            $response = Http::timeout(20)
                 ->withoutVerifying()   // nonaktifkan SSL verify (aman untuk local dev)
                 ->get($this->sheetdbUrl);
 
@@ -79,8 +80,11 @@ class AdminController extends Controller
                     continue;
                 }
 
-                if ($nim && isset($localVerifications[$nim])) {
-                    $local = $localVerifications[$nim];
+                $key = $this->getPesertaKey($clean);
+                $clean['_key'] = $key;
+
+                if ($key !== '' && isset($localVerifications[$key])) {
+                    $local = $localVerifications[$key];
                     if (!empty($local->status_pembayaran)) {
                         $clean['Status Pembayaran'] = $local->status_pembayaran;
                     }
@@ -139,12 +143,11 @@ class AdminController extends Controller
     }
 
     /**
-     * Paksa refresh cache lalu ambil ulang.
+     * Hapus cache data peserta agar request berikutnya mengambil data terbaru.
      */
-    private function fetchFresh(): array
+    private function fetchFresh(): void
     {
         Cache::forget('sheetdb_peserta');
-        return $this->fetchAll();
     }
 
     /**
@@ -152,9 +155,11 @@ class AdminController extends Controller
      */
     public function refresh()
     {
-        $this->fetchFresh();
+        Cache::forget('sheetdb_peserta');
+        $this->fetchAll();
         return back()->with('success', 'Data berhasil diperbarui dari Google Sheets.');
     }
+
 
     /**
      * Halaman dashboard admin.
@@ -250,32 +255,101 @@ class AdminController extends Controller
     }
 
     /**
+     * Helper: Generate a unique fallback key for any participant row.
+     */
+    private function getPesertaKey(array $p): string
+    {
+        $nim   = trim($p['NIM'] ?? '');
+        $email = strtolower(trim($p['Email Address'] ?? $p['Email'] ?? ''));
+        $nama  = strtolower(trim($p['Nama Lengkap'] ?? $p['nama'] ?? ''));
+
+        if ($nim !== '' && $nim !== '-') {
+            return $nim;
+        }
+        if ($email !== '' && $email !== '-') {
+            return 'EMAIL:' . $email;
+        }
+        if ($nama !== '' && $nama !== '-') {
+            return 'NAMA:' . $nama;
+        }
+        return '';
+    }
+
+    /**
+     * Helper: Find a participant in list by key, nim, email, or name.
+     */
+    private function findPesertaInList(Request $request, array $pesertaList): ?array
+    {
+        $reqNim   = trim($request->input('nim', ''));
+        $reqEmail = strtolower(trim($request->input('email', '')));
+        $reqNama  = strtolower(trim($request->input('nama', '')));
+        $reqKey   = trim($request->input('key', ''));
+
+        foreach ($pesertaList as $p) {
+            $pNim   = trim($p['NIM'] ?? '');
+            $pEmail = strtolower(trim($p['Email Address'] ?? $p['Email'] ?? ''));
+            $pNama  = strtolower(trim($p['Nama Lengkap'] ?? $p['nama'] ?? ''));
+            $pKey   = $this->getPesertaKey($p);
+
+            if ($reqKey !== '' && $pKey === $reqKey) {
+                return $p;
+            }
+            if ($reqNim !== '' && $reqNim !== '-' && $pNim === $reqNim) {
+                return $p;
+            }
+            if ($reqEmail !== '' && $reqEmail !== '-' && $pEmail === $reqEmail) {
+                return $p;
+            }
+            if ($reqNama !== '' && $reqNama !== '-' && $pNama === $reqNama) {
+                return $p;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Tandai peserta hadir — update kolom "Waktu Kehadiran" via Apps Script & database lokal.
      */
     public function tandaiHadir(Request $request)
     {
-        $request->validate(['nim' => 'required|string']);
+        $pesertaList = $this->fetchAll();
+        $pesertaItem = $this->findPesertaInList($request, $pesertaList);
 
-        $nim      = trim($request->nim);
-        $waktu    = now()->format('d/m/Y H:i:s');
+        if (!$pesertaItem) {
+            return back()->with('error', 'Data peserta tidak ditemukan.');
+        }
+
+        $key   = $this->getPesertaKey($pesertaItem);
+        $waktu = now()->format('d/m/Y H:i:s');
+        $displayName = $pesertaItem['Nama Lengkap'] ?? $pesertaItem['nama'] ?? 'Peserta';
 
         PaymentVerification::updateOrCreate(
-            ['nim' => $nim],
+            ['nim' => $key],
             ['waktu_kehadiran' => $waktu]
         );
 
         try {
-            Http::timeout(5)
-                ->withoutVerifying()
-                ->post($this->sheetdbUrl, [
-                    'nim'     => $nim,
-                    'updates' => ['Waktu Kehadiran' => $waktu],
-                ]);
+            $pNim   = trim($pesertaItem['NIM'] ?? '');
+            $pEmail = trim($pesertaItem['Email Address'] ?? $pesertaItem['Email'] ?? '');
+            $pNama  = trim($pesertaItem['Nama Lengkap'] ?? $pesertaItem['nama'] ?? '');
+
+            $searchPayload = [];
+            if ($pNim !== '' && $pNim !== '-') {
+                $searchPayload['nim'] = $pNim;
+            } elseif ($pEmail !== '' && $pEmail !== '-') {
+                $searchPayload['Email Address'] = $pEmail;
+            } else {
+                $searchPayload['Nama Lengkap'] = $pNama;
+            }
+
+            Http::timeout(5)->withoutVerifying()->post($this->sheetdbUrl, array_merge($searchPayload, [
+                'updates' => ['Waktu Kehadiran' => $waktu],
+            ]));
         } catch (\Throwable $e) {}
 
         $this->fetchFresh();
 
-        return back()->with('success', "Peserta NIM {$nim} berhasil ditandai hadir pada {$waktu}.");
+        return back()->with('success', "Peserta {$displayName} berhasil ditandai hadir pada {$waktu}.");
     }
 
     /**
@@ -283,24 +357,40 @@ class AdminController extends Controller
      */
     public function batalHadir(Request $request)
     {
-        $request->validate(['nim' => 'required|string']);
+        $pesertaList = $this->fetchAll();
+        $pesertaItem = $this->findPesertaInList($request, $pesertaList);
 
-        $nim = trim($request->nim);
+        if (!$pesertaItem) {
+            return back()->with('error', 'Data peserta tidak ditemukan.');
+        }
 
-        PaymentVerification::where('nim', $nim)->update(['waktu_kehadiran' => null]);
+        $key = $this->getPesertaKey($pesertaItem);
+        $displayName = $pesertaItem['Nama Lengkap'] ?? $pesertaItem['nama'] ?? 'Peserta';
+
+        PaymentVerification::where('nim', $key)->update(['waktu_kehadiran' => null]);
 
         try {
-            Http::timeout(5)
-                ->withoutVerifying()
-                ->post($this->sheetdbUrl, [
-                    'nim'     => $nim,
-                    'updates' => ['Waktu Kehadiran' => ''],
-                ]);
+            $pNim   = trim($pesertaItem['NIM'] ?? '');
+            $pEmail = trim($pesertaItem['Email Address'] ?? $pesertaItem['Email'] ?? '');
+            $pNama  = trim($pesertaItem['Nama Lengkap'] ?? $pesertaItem['nama'] ?? '');
+
+            $searchPayload = [];
+            if ($pNim !== '' && $pNim !== '-') {
+                $searchPayload['nim'] = $pNim;
+            } elseif ($pEmail !== '' && $pEmail !== '-') {
+                $searchPayload['Email Address'] = $pEmail;
+            } else {
+                $searchPayload['Nama Lengkap'] = $pNama;
+            }
+
+            Http::timeout(5)->withoutVerifying()->post($this->sheetdbUrl, array_merge($searchPayload, [
+                'updates' => ['Waktu Kehadiran' => ''],
+            ]));
         } catch (\Throwable $e) {}
 
         $this->fetchFresh();
 
-        return back()->with('success', "Status kehadiran peserta NIM {$nim} berhasil dibatalkan.");
+        return back()->with('success', "Status kehadiran peserta {$displayName} berhasil dibatalkan.");
     }
 
     /**
@@ -360,29 +450,43 @@ class AdminController extends Controller
      */
     public function hapusKursi(Request $request)
     {
-        $request->validate([
-            'nim' => 'required|string',
-        ]);
+        $pesertaList = $this->fetchAll();
+        $pesertaItem = $this->findPesertaInList($request, $pesertaList);
 
-        $nim = trim($request->nim);
+        if (!$pesertaItem) {
+            return back()->with('error', 'Data peserta tidak ditemukan.');
+        }
 
-        PaymentVerification::where('nim', $nim)->update(['nomor_kursi' => null]);
+        $key = $this->getPesertaKey($pesertaItem);
+        $displayName = $pesertaItem['Nama Lengkap'] ?? $pesertaItem['nama'] ?? 'Peserta';
+
+        PaymentVerification::where('nim', $key)->update(['nomor_kursi' => null]);
 
         try {
-            Http::timeout(10)
-                ->withoutVerifying()
-                ->post($this->sheetdbUrl, [
-                    'nim'     => $nim,
-                    'updates' => [
-                        'Nomor Kursi'    => '-',
-                        'Plotting Kursi' => '-',
-                    ],
-                ]);
+            $pNim   = trim($pesertaItem['NIM'] ?? '');
+            $pEmail = trim($pesertaItem['Email Address'] ?? $pesertaItem['Email'] ?? '');
+            $pNama  = trim($pesertaItem['Nama Lengkap'] ?? $pesertaItem['nama'] ?? '');
+
+            $searchPayload = [];
+            if ($pNim !== '' && $pNim !== '-') {
+                $searchPayload['nim'] = $pNim;
+            } elseif ($pEmail !== '' && $pEmail !== '-') {
+                $searchPayload['Email Address'] = $pEmail;
+            } else {
+                $searchPayload['Nama Lengkap'] = $pNama;
+            }
+
+            Http::timeout(10)->withoutVerifying()->post($this->sheetdbUrl, array_merge($searchPayload, [
+                'updates' => [
+                    'Nomor Kursi'    => '-',
+                    'Plotting Kursi' => '-',
+                ],
+            ]));
         } catch (\Throwable $e) {}
 
         $this->fetchFresh();
 
-        return back()->with('success', "Alokasi nomor kursi peserta NIM {$nim} berhasil dikosongkan.");
+        return back()->with('success', "Alokasi nomor kursi peserta {$displayName} berhasil dikosongkan.");
     }
 
     /**
@@ -391,33 +495,28 @@ class AdminController extends Controller
      */
     public function updatePembayaran(Request $request)
     {
-        $request->validate([
-            'nim'    => 'required|string',
-            'status' => 'required|string',
-        ]);
-
-        $nim       = trim($request->nim);
-        $rawStatus = trim($request->status);
-
-        if (in_array(strtolower($rawStatus), ['valid', 'validkan'])) {
-            $status = 'valid';
-        } else {
-            $status = $rawStatus;
+        $rawStatus = trim($request->input('status', ''));
+        if (!$rawStatus) {
+            return back()->with('error', 'Status pembayaran wajib diisi.');
         }
 
         $pesertaList = $this->fetchAll();
-        $pesertaItem = null;
-        foreach ($pesertaList as $p) {
-            if (trim($p['NIM'] ?? '') === $nim) {
-                $pesertaItem = $p;
-                break;
-            }
+        $pesertaItem = $this->findPesertaInList($request, $pesertaList);
+
+        if (!$pesertaItem) {
+            return back()->with('error', 'Data peserta tidak ditemukan.');
         }
 
-        $kursiAuto = null;
-        $prodi     = $pesertaItem['Program Studi'] ?? 'Umum';
+        $key = $this->getPesertaKey($pesertaItem);
+        if (!$key) {
+            return back()->with('error', 'Identitas peserta tidak dapat dikenali.');
+        }
 
-        // Auto-floating seat assignment when status becomes 'valid' and participant doesn't have a seat yet
+        $status = in_array(strtolower($rawStatus), ['valid', 'validkan']) ? 'valid' : $rawStatus;
+        $prodi  = $pesertaItem['Program Studi'] ?? 'Umum';
+        $displayName = $pesertaItem['Nama Lengkap'] ?? $pesertaItem['nama'] ?? 'Peserta';
+
+        $kursiAuto = null;
         $currentSeat = trim($pesertaItem['Nomor Kursi'] ?? '-');
         if (in_array(strtolower($status), ['valid', 'validkan']) && ($currentSeat === '' || $currentSeat === '-')) {
             $kursiAuto = $this->generateNextSeatForProdi($prodi, $pesertaList);
@@ -433,38 +532,49 @@ class AdminController extends Controller
             $updateData['nomor_kursi'] = $kursiAuto;
         }
 
-        PaymentVerification::updateOrCreate(['nim' => $nim], $updateData);
+        PaymentVerification::updateOrCreate(['nim' => $key], $updateData);
 
         try {
-            $patchData = [
+            $pNim   = trim($pesertaItem['NIM'] ?? '');
+            $pEmail = trim($pesertaItem['Email Address'] ?? $pesertaItem['Email'] ?? '');
+            $pNama  = trim($pesertaItem['Nama Lengkap'] ?? $pesertaItem['nama'] ?? '');
+
+            $postPayload = [
+                'status'             => $status,
                 'Status Pembayaran'  => $status,
                 'Status Pembayaran ' => $status,
             ];
+            if ($pNim !== '' && $pNim !== '-') {
+                $postPayload['nim'] = $pNim;
+                $postPayload['NIM'] = $pNim;
+            }
+            if ($pEmail !== '' && $pEmail !== '-') {
+                $postPayload['email']          = $pEmail;
+                $postPayload['Email']          = $pEmail;
+                $postPayload['Email ']         = $pEmail;
+                $postPayload['Email Address']  = $pEmail;
+                $postPayload['Email Address '] = $pEmail;
+            }
+            if ($pNama !== '' && $pNama !== '-') {
+                $postPayload['nama']          = $pNama;
+                $postPayload['Nama']          = $pNama;
+                $postPayload['Nama Lengkap']  = $pNama;
+                $postPayload['Nama Lengkap '] = $pNama;
+            }
             if ($kursiAuto) {
-                $patchData['Nomor Kursi']    = $kursiAuto;
-                $patchData['Plotting Kursi'] = $kursiAuto;
+                $postPayload['nomor_kursi']    = $kursiAuto;
+                $postPayload['Nomor Kursi']    = $kursiAuto;
+                $postPayload['Plotting Kursi'] = $kursiAuto;
             }
 
-            Http::timeout(10)
-                ->withoutVerifying()
-                ->post($this->sheetdbUrl, [
-                    'nim'     => $nim,
-                    'updates' => $patchData,
-                ]);
-
-            $webAppUrl = env('APPS_SCRIPT_WEBAPP_URL');
-            if ($webAppUrl) {
-                $payload = ['nim' => $nim, 'status' => $status];
-                if ($kursiAuto) $payload['nomor_kursi'] = $kursiAuto;
-                Http::timeout(5)->withoutVerifying()->post($webAppUrl, $payload);
-            }
+            Http::timeout(30)->withoutVerifying()->post($this->sheetdbUrl, $postPayload);
         } catch (\Throwable $e) {}
 
         $this->fetchFresh();
 
         $msg = in_array(strtolower($status), ['valid', 'validkan'])
-            ? "Pembayaran peserta NIM {$nim} ({$prodi}) disetujui ('valid'). " . ($kursiAuto ? "🎯 Bangku otomatis teralokasi ke '{$kursiAuto}' (Blok {$prodi})!" : "")
-            : "Status pembayaran peserta NIM {$nim} diubah menjadi '{$status}'.";
+            ? "Pembayaran peserta {$displayName} disetujui ('valid'). " . ($kursiAuto ? "🎯 Bangku otomatis teralokasi ke '{$kursiAuto}' (Blok {$prodi})!" : "")
+            : "Status pembayaran peserta {$displayName} diubah menjadi '{$status}'.";
 
         return back()->with('success', $msg);
     }
@@ -475,34 +585,62 @@ class AdminController extends Controller
     public function updateKursi(Request $request)
     {
         $request->validate([
-            'nim'         => 'required|string',
             'nomor_kursi' => 'required|string|max:20',
         ]);
 
-        $nim   = trim($request->nim);
+        $pesertaList = $this->fetchAll();
+        $pesertaItem = $this->findPesertaInList($request, $pesertaList);
+
+        if (!$pesertaItem) {
+            return back()->with('error', 'Data peserta tidak ditemukan.');
+        }
+
+        $key   = $this->getPesertaKey($pesertaItem);
         $kursi = strtoupper(trim($request->nomor_kursi));
+        $displayName = $pesertaItem['Nama Lengkap'] ?? $pesertaItem['nama'] ?? 'Peserta';
 
         PaymentVerification::updateOrCreate(
-            ['nim' => $nim],
+            ['nim' => $key],
             ['nomor_kursi' => $kursi]
         );
 
         try {
-            Http::timeout(10)
-                ->withoutVerifying()
-                ->post($this->sheetdbUrl, [
-                    'nim'     => $nim,
-                    'updates' => [
-                        'Nomor Kursi'    => $kursi,
-                        'Plotting Kursi' => $kursi,
-                    ],
-                ]);
+            $pNim   = trim($pesertaItem['NIM'] ?? '');
+            $pEmail = trim($pesertaItem['Email Address'] ?? $pesertaItem['Email'] ?? '');
+            $pNama  = trim($pesertaItem['Nama Lengkap'] ?? $pesertaItem['nama'] ?? '');
+
+            $postPayload = [
+                'nomor_kursi'    => $kursi,
+                'Nomor Kursi'    => $kursi,
+                'Plotting Kursi' => $kursi,
+            ];
+            if ($pNim !== '' && $pNim !== '-') {
+                $postPayload['nim'] = $pNim;
+                $postPayload['NIM'] = $pNim;
+            }
+            if ($pEmail !== '' && $pEmail !== '-') {
+                $postPayload['email']          = $pEmail;
+                $postPayload['Email']          = $pEmail;
+                $postPayload['Email ']         = $pEmail;
+                $postPayload['Email Address']  = $pEmail;
+                $postPayload['Email Address '] = $pEmail;
+            }
+            if ($pNama !== '' && $pNama !== '-') {
+                $postPayload['nama']          = $pNama;
+                $postPayload['Nama']          = $pNama;
+                $postPayload['Nama Lengkap']  = $pNama;
+                $postPayload['Nama Lengkap '] = $pNama;
+            }
+
+            Http::timeout(10)->withoutVerifying()->post($this->sheetdbUrl, $postPayload);
         } catch (\Throwable $e) {}
 
         $this->fetchFresh();
 
-        return back()->with('success', "Nomor kursi peserta NIM {$nim} berhasil diatur ke '{$kursi}'.");
+        return back()->with('success', "Nomor kursi peserta {$displayName} berhasil diatur ke '{$kursi}'.");
     }
+
+
 
     /**
      * Plotting otomatis kursi peserta.
