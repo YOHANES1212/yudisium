@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Client\Pool;
 use App\Models\ScanLog;
 use App\Models\PaymentVerification;
 
@@ -414,6 +416,26 @@ class AdminController extends Controller
     }
 
     /**
+     * Helper: Parse NIM into numeric components (Year, Code, Sequence) to handle unpadded NIMs gracefully.
+     */
+    private function parseNimComponents(string $nimStr): array
+    {
+        $digits = preg_replace('/[^0-9]/', '', $nimStr);
+        if (strlen($digits) < 4) {
+            return ['year' => 0, 'code' => '', 'seq' => 0, 'raw' => $digits];
+        }
+        $year = (int) substr($digits, 0, 4);
+        if (strlen($digits) >= 8) {
+            $code = substr($digits, 4, 4);
+            $seq  = (int) substr($digits, 8);
+        } else {
+            $code = substr($digits, 4);
+            $seq  = 0;
+        }
+        return ['year' => $year, 'code' => $code, 'seq' => $seq, 'raw' => $digits];
+    }
+
+    /**
      * Auto-Floating: Hitung nomor bangku berikutnya untuk M (M1..), S (S1..), atau T (T1..).
      */
     private function generateNextSeatForProdi(string $prodiName, array $pesertaList, string $nim = ''): string
@@ -658,39 +680,25 @@ class AdminController extends Controller
         return back()->with('success', "Nomor kursi peserta {$displayName} berhasil diatur ke '{$kursi}'.");
     }
 
-
-
     /**
-     * Plotting otomatis kursi peserta.
+     * Plotting otomatis kursi peserta berdasarkan NIM (Ascending).
      */
     public function autoPlotting(Request $request)
     {
-        $mode = $request->input('mode', 'unassigned'); // 'unassigned' or 'reset_all'
-
         $pesertaList = $this->fetchAll();
 
-        if ($mode === 'reset_all') {
-            PaymentVerification::query()->update(['nomor_kursi' => null]);
-            $targets = $pesertaList;
-        } else {
-            $targets = array_values(array_filter($pesertaList, function ($p) {
-                $kursi = trim($p['Nomor Kursi'] ?? '-');
-                return $kursi === '' || $kursi === '-';
-            }));
+        if (empty($pesertaList)) {
+            return back()->with('error', 'Tidak ada data peserta yang ditemukan.');
         }
 
-        if (empty($targets)) {
-            return back()->with('error', 'Tidak ada peserta yang perlu di-plotting.');
-        }
-
-        // Group by Prodi Prefix (M, S, T)
+        // Kelompokkan peserta berdasarkan prefix Prodi (M, S, T)
         $mGroup = [];
         $sGroup = [];
         $tGroup = [];
 
-        foreach ($targets as $p) {
-            $prodi = trim($p['Program Studi'] ?? '');
-            $nim   = trim($p['NIM'] ?? '');
+        foreach ($pesertaList as $p) {
+            $prodi  = trim($p['Program Studi'] ?? '');
+            $nim    = trim($p['NIM'] ?? '');
             $prefix = $this->getProdiPrefix($prodi, $nim);
 
             if ($prefix === 'M') {
@@ -702,60 +710,100 @@ class AdminController extends Controller
             }
         }
 
-        // Function to sort array of participants by NIM (ascending)
+        // Pengurutan berdasarkan NIM (ascending / dari terkecil ke terbesar)
+        // Menggunakan parsing cerdas komponen NIM (Angkatan -> Kode Prodi -> Nomor Urut Peserta)
         $sortByNim = function ($a, $b) {
-            $nimA = preg_replace('/[^0-9]/', '', $a['NIM'] ?? '');
-            $nimB = preg_replace('/[^0-9]/', '', $b['NIM'] ?? '');
-            if ($nimA === '' || $nimB === '') {
-                return strcmp($a['NIM'] ?? '', $b['NIM'] ?? '');
+            $nimA = $a['NIM'] ?? '';
+            $nimB = $b['NIM'] ?? '';
+
+            $cA = $this->parseNimComponents($nimA);
+            $cB = $this->parseNimComponents($nimB);
+
+            if ($cA['raw'] !== '' && $cB['raw'] !== '') {
+                if ($cA['year'] !== $cB['year']) {
+                    return $cA['year'] <=> $cB['year'];
+                }
+                if ($cA['code'] !== $cB['code']) {
+                    return strcmp($cA['code'], $cB['code']);
+                }
+                if ($cA['seq'] !== $cB['seq']) {
+                    return $cA['seq'] <=> $cB['seq'];
+                }
+                return strcmp($cA['raw'], $cB['raw']);
             }
-            return (int) $nimA <=> (int) $nimB;
+            if ($cA['raw'] !== '' && $cB['raw'] === '') return -1;
+            if ($cA['raw'] === '' && $cB['raw'] !== '') return 1;
+            return strcmp($a['Nama Lengkap'] ?? $a['nama'] ?? '', $b['Nama Lengkap'] ?? $b['nama'] ?? '');
         };
 
         usort($mGroup, $sortByNim);
         usort($sGroup, $sortByNim);
         usort($tGroup, $sortByNim);
 
-        $count = 0;
         $allGroups = [
             'M' => $mGroup,
             'S' => $sGroup,
             'T' => $tGroup,
         ];
 
+        $bulkUpdates = [];
+        $count = 0;
+
         foreach ($allGroups as $prefix => $pList) {
+            $usedSeats = [];
+            $unassignedParticipants = [];
+
+            // Pass 1: Alokasikan bangku LANGSUNG sesuai nomor digit belakang NIM (misal NIM belakang 1 -> S1/T1/M1)
             foreach ($pList as $p) {
                 $key = $this->getPesertaKey($p);
-                $nim = trim($p['NIM'] ?? '');
-                $prodiName = trim($p['Program Studi'] ?? '');
+                $nim = $p['NIM'] ?? '';
+                $parsed = $this->parseNimComponents($nim);
+                $targetSeq = $parsed['seq'];
 
-                $currentList = $this->fetchAll();
-                $seatCode = $this->generateNextSeatForProdi($prodiName, $currentList, $nim);
+                if ($key !== '' && $targetSeq > 0) {
+                    $targetSeat = $prefix . $targetSeq;
+                    if (!isset($usedSeats[$targetSeat])) {
+                        $usedSeats[$targetSeat] = true;
+                        $bulkUpdates[$key] = $targetSeat;
+                        $count++;
+                        continue;
+                    }
+                }
+                $unassignedParticipants[] = $p;
+            }
 
-                PaymentVerification::updateOrCreate(
-                    ['nim' => $key],
-                    ['nomor_kursi' => $seatCode]
-                );
+            // Pass 2: Untuk peserta bentrok atau tanpa NIM valid, alokasikan ke nomor bangku kosong berikutnya
+            $fallbackNum = 1;
+            foreach ($unassignedParticipants as $p) {
+                $key = $this->getPesertaKey($p);
+                if ($key === '') continue;
 
-                try {
-                    Http::timeout(5)->withoutVerifying()->post($this->sheetdbUrl, [
-                        'nim'     => $nim,
-                        'email'   => $p['Email Address'] ?? $p['Email'] ?? '',
-                        'nama'    => $p['Nama Lengkap'] ?? $p['nama'] ?? '',
-                        'updates' => [
-                            'Nomor Kursi'    => $seatCode,
-                            'Plotting Kursi' => $seatCode,
-                        ],
-                    ]);
-                } catch (\Throwable $e) {}
+                while (isset($usedSeats[$prefix . $fallbackNum])) {
+                    $fallbackNum++;
+                }
 
+                $seatCode = $prefix . $fallbackNum;
+                $usedSeats[$seatCode] = true;
+                $bulkUpdates[$key] = $seatCode;
                 $count++;
             }
         }
 
+        // Update database lokal secara massal dalam 1 transaksi DB: reset dulu lalu isi baru
+        DB::transaction(function () use ($bulkUpdates) {
+            PaymentVerification::query()->update(['nomor_kursi' => null]);
+            foreach ($bulkUpdates as $key => $seatCode) {
+                PaymentVerification::updateOrCreate(
+                    ['nim' => $key],
+                    ['nomor_kursi' => $seatCode]
+                );
+            }
+        });
+
+        // Bersihkan cache agar data terbaru langsung dibaca dari DB lokal
         $this->fetchFresh();
 
-        return back()->with('success', "⚡ Resepsionis Pinter: Berhasil mengurutkan berdasarkan NIM & mengalokasikan bangku untuk {$count} peserta (M1-M12, S1-S71, T1-T239)!");
+        return back()->with('success', "⚡ Resepsionis Pinter: Berhasil mengurutkan seluruh peserta berdasarkan NIM (Ascending) & mengalokasikan bangku untuk {$count} peserta secara instan!");
     }
 
     /**

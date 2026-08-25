@@ -439,15 +439,15 @@
                     <div class="mb-3">
                         <label class="form-label" style="font-size:13px;font-weight:600;">Metode Alokasi</label>
                         <div class="form-check mb-2">
-                            <input class="form-check-input" type="radio" name="mode" id="modeUnassigned" value="unassigned" checked>
-                            <label class="form-check-label" for="modeUnassigned" style="font-size:13px;">
-                                <strong>Hanya Peserta Tanpa Bangku</strong> (Pertahankan bangku yang sudah terplot)
+                            <input class="form-check-input" type="radio" name="mode" id="modeReset" value="reset_all" checked>
+                            <label class="form-check-label" for="modeReset" style="font-size:13px;">
+                                <strong>Reset & Plotting Ulang Seluruh Peserta</strong> (Urutkan dari NIM terkecil ke terbesar)
                             </label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input" type="radio" name="mode" id="modeReset" value="reset_all">
-                            <label class="form-check-label" for="modeReset" style="font-size:13px;">
-                                <strong>Reset & Plotting Ulang Seluruh Peserta</strong> (Urutkan dari NIM terkecil ke terbesar)
+                            <input class="form-check-input" type="radio" name="mode" id="modeUnassigned" value="unassigned">
+                            <label class="form-check-label" for="modeUnassigned" style="font-size:13px;">
+                                <strong>Hanya Peserta Tanpa Bangku</strong> (Pertahankan bangku yang sudah terplot)
                             </label>
                         </div>
                     </div>
