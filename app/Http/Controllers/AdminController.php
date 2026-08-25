@@ -116,6 +116,8 @@ class AdminController extends Controller
                 }
                 if (!isset($clean['Nomor Kursi']) || trim($clean['Nomor Kursi']) === '') {
                     $clean['Nomor Kursi'] = '-';
+                } else {
+                    $clean['Nomor Kursi'] = $this->normalizeKursi($clean['Nomor Kursi']);
                 }
 
                 // Automatic Auto-Seat Assignment: If participant is VALID but has no seat assigned
@@ -807,7 +809,177 @@ class AdminController extends Controller
     }
 
     /**
-     * Reset seluruh plotting kursi peserta.
+     * Normalisasi format kursi ke format standar tampilan.
+     * Input:  SI-001, SI001, S1, S-1, TI-001, T1, MIK-001, M1
+     * Output: SI-001, TI-001, MIK-001 (format tampilan konsisten)
+     */
+    private function normalizeKursi(string $raw): string
+    {
+        $val = strtoupper(trim($raw));
+        if ($val === '' || $val === '-') return '-';
+
+        // Sudah dalam format yang benar (SI-001, TI-001, MIK-001) → return as-is
+        if (preg_match('/^(MIK|SI|TI)-\d+$/i', $val)) {
+            // Pastikan nomor 3 digit
+            if (preg_match('/^(MIK|SI|TI)-(\d+)$/i', $val, $m)) {
+                return strtoupper($m[1]) . '-' . str_pad((int)$m[2], 3, '0', STR_PAD_LEFT);
+            }
+            return $val;
+        }
+
+        // Format S1, S-1, SI1 → SI-001
+        if (preg_match('/^(MIK|SI|S|TI|T|M)-?(\d+)$/i', $val, $m)) {
+            $prefix = strtoupper($m[1]);
+            $num    = (int) $m[2];
+            $map    = ['M' => 'MIK', 'S' => 'SI', 'T' => 'TI', 'MIK' => 'MIK', 'SI' => 'SI', 'TI' => 'TI'];
+            $std    = $map[$prefix] ?? $prefix;
+            return $std . '-' . str_pad($num, 3, '0', STR_PAD_LEFT);
+        }
+
+        return $val;
+    }
+
+    /**
+     * Import nomor kursi dari file CSV.
+     * Format CSV: kolom 1 = Nomor Kursi, kolom 2 = NIM
+     * (atau sebaliknya — sistem deteksi otomatis)
+     */
+    public function importKursi(Request $request)
+    {
+        $request->validate([
+            'csv_file' => 'required|file|mimes:csv,txt|max:2048',
+        ], [
+            'csv_file.required' => 'File CSV wajib dipilih.',
+            'csv_file.mimes'    => 'Format file harus CSV (.csv atau .txt).',
+            'csv_file.max'      => 'Ukuran file maksimal 2MB.',
+        ]);
+
+        $file    = $request->file('csv_file');
+        $handle  = fopen($file->getPathname(), 'r');
+        $count   = 0;
+        $skipped = 0;
+        $errors  = [];
+        $isFirst = true;
+
+        // Deteksi BOM UTF-8
+        $bom = fread($handle, 3);
+        if ($bom !== "\xEF\xBB\xBF") {
+            rewind($handle);
+        }
+
+        while (($row = fgetcsv($handle, 1000, ',')) !== false) {
+            // Coba separator titik koma jika koma tidak menghasilkan 2 kolom
+            if (count($row) < 2) {
+                rewind($handle);
+                $bom2 = fread($handle, 3);
+                if ($bom2 !== "\xEF\xBB\xBF") rewind($handle);
+                while (($row = fgetcsv($handle, 1000, ';')) !== false) {
+                    // Re-process with semicolon
+                    if ($isFirst) {
+                        $isFirst = false;
+                        $h0 = strtolower(trim($row[0] ?? ''));
+                        $h1 = strtolower(trim($row[1] ?? ''));
+                        if (str_contains($h0, 'kursi') || str_contains($h0, 'nomor') || str_contains($h1, 'nim')) {
+                            continue; // skip header
+                        }
+                    }
+                    $this->processImportRow($row, $count, $skipped, $errors);
+                }
+                break;
+            }
+
+            // Skip header baris pertama
+            if ($isFirst) {
+                $isFirst = false;
+                $h0 = strtolower(trim($row[0] ?? ''));
+                $h1 = strtolower(trim($row[1] ?? ''));
+                if (str_contains($h0, 'kursi') || str_contains($h0, 'nomor') || str_contains($h1, 'nim')) {
+                    continue;
+                }
+            }
+
+            $this->processImportRow($row, $count, $skipped, $errors);
+        }
+
+        fclose($handle);
+        $this->fetchFresh();
+
+        $msg = "✅ Import selesai! {$count} kursi berhasil diimport.";
+        if ($skipped > 0) $msg .= " {$skipped} baris dilewati (NIM kosong/tidak valid).";
+        if (!empty($errors)) $msg .= " Peringatan: " . implode(', ', array_slice($errors, 0, 3));
+
+        return back()->with('success', $msg);
+    }
+
+    /**
+     * Proses satu baris CSV import kursi.
+     */
+    private function processImportRow(array $row, int &$count, int &$skipped, array &$errors): void
+    {
+        $col0 = trim($row[0] ?? '');
+        $col1 = trim($row[1] ?? '');
+
+        if ($col0 === '' && $col1 === '') {
+            $skipped++;
+            return;
+        }
+
+        // Deteksi kolom mana yang NIM dan mana kursi
+        // NIM = angka panjang (8+ digit), kursi = alphanumeric pendek
+        $isCol0Nim = preg_match('/^\d{8,}$/', $col0);
+        $nim   = $isCol0Nim ? $col0 : $col1;
+        $kursi = $isCol0Nim ? $col1 : $col0;
+
+        $nim   = trim($nim);
+        $kursi = trim($kursi);
+
+        if ($nim === '' || $kursi === '' || $kursi === '-') {
+            $skipped++;
+            return;
+        }
+
+        // Normalisasi format kursi
+        $kursiNorm = $this->normalizeKursi($kursi);
+
+        PaymentVerification::updateOrCreate(
+            ['nim' => $nim],
+            ['nomor_kursi' => $kursiNorm]
+        );
+
+        $count++;
+    }
+
+    /**
+     * Download template CSV untuk import kursi.
+     */
+    public function importTemplate()
+    {
+        $callback = function () {
+            $handle = fopen('php://output', 'w');
+            fputs($handle, "\xEF\xBB\xBF"); // BOM UTF-8
+            fputcsv($handle, ['Nomor Kursi', 'NIM']);
+            // Contoh data
+            $contoh = [
+                ['M1', '20240804001'],
+                ['M2', '20240804002'],
+                ['S1', '20220803001'],
+                ['S2', '20220803002'],
+                ['T1', '20220801001'],
+                ['T2', '20220801002'],
+            ];
+            foreach ($contoh as $row) {
+                fputcsv($handle, $row);
+            }
+            fclose($handle);
+        };
+
+        return response()->streamDownload($callback, 'template_import_kursi.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    /**
+     * Reset seluruh alokasi nomor kursi peserta.
      */
     public function resetPlotting()
     {

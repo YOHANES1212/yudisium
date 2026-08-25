@@ -40,6 +40,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'panitia'])->group(f
     Route::get('/plotting',      [AdminController::class, 'plotting'])->name('plotting');
     Route::post('/plotting/auto', [AdminController::class, 'autoPlotting'])->name('plotting.auto');
     Route::post('/plotting/reset', [AdminController::class, 'resetPlotting'])->name('plotting.reset');
+    Route::post('/plotting/import', [AdminController::class, 'importKursi'])->name('plotting.import');
+    Route::get('/plotting/import/template', [AdminController::class, 'importTemplate'])->name('plotting.import.template');
     Route::get('/absensi',       [AdminController::class, 'absensi'])->name('absensi');
     Route::post('/absensi/scan', [AdminController::class, 'scanQr'])->name('absensi.scan');
     Route::get('/logs',          [AdminController::class, 'logs'])->name('logs');

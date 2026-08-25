@@ -348,8 +348,48 @@
         </div>
     </div>
 
-    {{-- ── Manual Assign Form / Unassigned List ───────────────── --}}
+    {{-- ── Manual Assign Form / Import CSV / Unassigned List ─────── --}}
     <div class="col-12 col-xl-4">
+
+        {{-- IMPORT CSV --}}
+        <div class="data-card mb-3">
+            <div class="data-card-header" style="padding:14px 18px;">
+                <div class="data-card-title" style="font-size:14px;">
+                    <i class="bi bi-file-earmark-arrow-up me-2 text-success"></i>
+                    Import Kursi dari CSV
+                </div>
+            </div>
+            <div style="padding:18px;">
+                <div style="background:#F0FDF4;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:#166534;line-height:1.7;">
+                    <strong>📋 Format CSV:</strong><br>
+                    Kolom A = <strong>Nomor Kursi</strong> (SI-001, TI-001, MIK-001)<br>
+                    Kolom B = <strong>NIM</strong> peserta<br>
+                    <span style="opacity:0.8;">Baris pertama boleh header, otomatis diabaikan.</span>
+                </div>
+
+                <form action="{{ route('admin.plotting.import') }}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <div class="mb-3">
+                        <label class="form-label" style="font-size:12px;font-weight:600;">Pilih File CSV</label>
+                        <input type="file" name="csv_file" accept=".csv,.txt"
+                               class="form-control" style="font-size:13px;border-radius:8px;" required>
+                    </div>
+                    <button type="submit" class="btn-primary-sm w-100 justify-content-center py-2"
+                            style="background:#10B981;">
+                        <i class="bi bi-upload me-1"></i> Import & Simpan Kursi
+                    </button>
+                </form>
+
+                <div style="margin-top:12px;text-align:center;">
+                    <a href="{{ route('admin.plotting.import.template') }}"
+                       class="btn-outline-sm" style="font-size:12px;">
+                        <i class="bi bi-download me-1"></i> Download Template CSV
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        {{-- MANUAL ASSIGN --}}
         <div class="data-card">
             <div class="data-card-header">
                 <div class="data-card-title" style="font-size:14px;">
@@ -413,6 +453,7 @@
                 </div>
             </div>
         </div>
+        {{-- END MANUAL ASSIGN --}}
     </div>
 </div>
 
