@@ -957,6 +957,36 @@ class AdminController extends Controller
         $nimPeserta   = $peserta['NIM'] ?? '-';
         $prodiPeserta = $peserta['Program Studi'] ?? '-';
 
+        // Ambil nomor kursi dari data peserta atau DB lokal
+        $kursiPeserta = trim($peserta['Nomor Kursi'] ?? '');
+        if ($kursiPeserta === '' || $kursiPeserta === '-') {
+            $localSeat = PaymentVerification::where('nim', $nimPeserta)->value('nomor_kursi');
+            if ($localSeat) {
+                $kursiPeserta = $localSeat;
+            }
+        }
+        if ($kursiPeserta === '') {
+            $kursiPeserta = '-';
+        }
+
+        // Tentukan blok tempat duduk berdasarkan prefix kursi (M, S, T)
+        $prefixKursi = strtoupper(substr($kursiPeserta, 0, 1));
+        if ($prefixKursi === 'M') {
+            $blokKursi = 'Blok Magister (Depan Kiri)';
+        } elseif ($prefixKursi === 'S') {
+            $blokKursi = 'Blok Sistem Informasi (Tengah Kiri)';
+        } elseif ($prefixKursi === 'T') {
+            $blokKursi = 'Blok Teknik Informatika (Tengah & Kanan)';
+        } else {
+            $blokKursi = 'Denah Utama Yudisium';
+        }
+
+        $pesertaData = array_merge($peserta, [
+            'Nomor Kursi' => $kursiPeserta,
+            'nomor_kursi' => $kursiPeserta,
+            'Blok Kursi'  => $blokKursi,
+        ]);
+
         // Sudah hadir?
         if (! empty($peserta['Waktu Kehadiran'])) {
             ScanLog::create([
@@ -966,15 +996,16 @@ class AdminController extends Controller
                 'peserta_nim'  => $nimPeserta,
                 'peserta_nama' => $namaPeserta,
                 'peserta_prodi'=> $prodiPeserta,
+                'peserta_kursi'=> $kursiPeserta,
                 'status'       => 'already',
-                'message'      => "{$namaPeserta} sudah hadir pada {$peserta['Waktu Kehadiran']}.",
+                'message'      => "{$namaPeserta} (Bangku {$kursiPeserta}) sudah hadir pada {$peserta['Waktu Kehadiran']}.",
                 'scanned_at'   => now(),
             ]);
 
             return response()->json([
                 'status'  => 'already',
                 'message' => "{$namaPeserta} sudah hadir pada {$peserta['Waktu Kehadiran']}.",
-                'peserta' => $peserta,
+                'peserta' => $pesertaData,
             ]);
         }
 
@@ -1000,8 +1031,9 @@ class AdminController extends Controller
             'peserta_nim'  => $nimPeserta,
             'peserta_nama' => $namaPeserta,
             'peserta_prodi'=> $prodiPeserta,
+            'peserta_kursi'=> $kursiPeserta,
             'status'       => 'success',
-            'message'      => "Kehadiran {$namaPeserta} berhasil dicatat.",
+            'message'      => "Kehadiran {$namaPeserta} (Bangku {$kursiPeserta}) berhasil dicatat.",
             'scanned_at'   => now(),
         ]);
 
@@ -1017,8 +1049,8 @@ class AdminController extends Controller
 
         return response()->json([
             'status'  => 'success',
-            'message' => "Kehadiran {$namaPeserta} berhasil dicatat pukul {$waktu}.",
-            'peserta' => array_merge($peserta, ['Waktu Kehadiran' => $waktu]),
+            'message' => "Kehadiran {$namaPeserta} berhasil dicatat. Silakan menuju Bangku {$kursiPeserta}.",
+            'peserta' => array_merge($pesertaData, ['Waktu Kehadiran' => $waktu]),
         ]);
     }
 

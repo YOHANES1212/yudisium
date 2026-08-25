@@ -16,6 +16,7 @@ class ScanLog extends Model
         'peserta_nim',
         'peserta_nama',
         'peserta_prodi',
+        'peserta_kursi',
         'status',
         'message',
         'scanned_at',

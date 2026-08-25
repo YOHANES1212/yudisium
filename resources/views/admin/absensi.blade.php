@@ -145,17 +145,33 @@
                 {{-- ── Result Box ────────────────────────────── --}}
                 <div id="resultCard" style="display:none;margin-top:16px;">
                     <div id="resultBox" style="border-radius:14px;padding:20px 22px;
-                                               display:flex;align-items:center;gap:16px;">
-                        <div id="resultIcon" style="font-size:44px;line-height:1;flex-shrink:0;"></div>
-                        <div style="flex:1;min-width:0;">
-                            <div id="resultNama"
-                                 style="font-size:18px;font-weight:700;line-height:1.2;
-                                        margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;
-                                        white-space:nowrap;"></div>
-                            <div id="resultDetail"
-                                 style="font-size:13px;opacity:0.85;margin-bottom:4px;"></div>
-                            <div id="resultKursi" style="font-size:13px;font-weight:700;margin-bottom:6px;display:none;"></div>
-                            <div id="resultMsg" style="font-size:13px;font-weight:500;"></div>
+                                               display:flex;flex-direction:column;gap:12px;">
+                        <div style="display:flex;align-items:center;gap:16px;">
+                            <div id="resultIcon" style="font-size:44px;line-height:1;flex-shrink:0;"></div>
+                            <div style="flex:1;min-width:0;">
+                                <div id="resultNama"
+                                     style="font-size:18px;font-weight:700;line-height:1.2;
+                                            margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;
+                                            white-space:nowrap;"></div>
+                                <div id="resultDetail"
+                                     style="font-size:13px;opacity:0.85;margin-bottom:4px;"></div>
+                                <div id="resultMsg" style="font-size:13px;font-weight:500;"></div>
+                            </div>
+                        </div>
+
+                        {{-- 🪑 HIGHLIGHT BANGKU DUDUK PESERTA --}}
+                        <div id="resultKursi" style="display:none;background:rgba(255,255,255,0.92);border-radius:12px;padding:12px 16px;border:2px solid currentColor;color:#1E293B;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+                                <div>
+                                    <div style="font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#475569;margin-bottom:2px;">
+                                        <i class="bi bi-geo-alt-fill me-1 text-danger"></i> BANGKU DUDUK PESERTA:
+                                    </div>
+                                    <div id="resultKursiBlok" style="font-size:12px;font-weight:600;color:#0F172A;"></div>
+                                </div>
+                                <div id="resultKursiBadge" style="background:#00C853;color:#ffffff;font-size:22px;font-weight:900;padding:6px 18px;border-radius:10px;letter-spacing:1px;box-shadow:0 4px 10px rgba(0,0,0,0.15);">
+                                    -
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -528,20 +544,41 @@ function showResult(data, code) {
     const nim   = p ? (p['NIM']           || p.nim   || cleanCode) : cleanCode;
     const prodi = p ? (p['Program Studi'] || p.prodi || '')        : '';
     const kursi = p ? (p['Nomor Kursi']    || p.nomor_kursi || '-') : '-';
+    const blok  = p ? (p['Blok Kursi']     || p.blok_kursi  || '')  : '';
 
     resultCard.style.display   = 'block';
     resultCard.style.animation = 'slideIn 0.25s ease';
-    resultBox.style.cssText    = `border-radius:14px;padding:20px 22px;display:flex;
-        align-items:center;gap:16px;background:${s.bg};color:${s.color};`;
+    resultBox.style.cssText    = `border-radius:16px;padding:20px 22px;display:flex;
+        flex-direction:column;gap:12px;background:${s.bg};color:${s.color};box-shadow:0 8px 24px rgba(0,0,0,0.12);`;
     resultIcon.textContent  = s.icon;
     resultNama.textContent  = data.status === 'not_found' ? 'Peserta Tidak Ditemukan' : nama;
     resultDetail.textContent= data.status === 'not_found' ? 'ID / Kode: '+cleanCode : nim+(prodi?' · '+prodi:'');
 
+    const resultKursiBox = document.getElementById('resultKursi');
+    const resultKursiBlok = document.getElementById('resultKursiBlok');
+    const resultKursiBadge = document.getElementById('resultKursiBadge');
+
     if (kursi !== '-' && data.status !== 'not_found') {
-        resultKursi.style.display = 'block';
-        resultKursi.innerHTML = `🪑 <strong>Kursi:</strong> Baris/Nomor <span style="background:rgba(0,0,0,0.08);padding:2px 8px;border-radius:6px;">${esc(kursi)}</span>`;
+        resultKursiBox.style.display = 'block';
+        resultKursiBadge.textContent = kursi;
+
+        const pFx = kursi.charAt(0).toUpperCase();
+        let badgeBg = '#059669';
+        let blokText = blok || 'Denah Tempat Duduk Yudisium';
+        if (pFx === 'M') {
+            badgeBg = '#00C853';
+            if (!blok) blokText = 'Blok Magister (Depan Kiri)';
+        } else if (pFx === 'S') {
+            badgeBg = '#FF9100';
+            if (!blok) blokText = 'Blok Sistem Informasi (Tengah Kiri)';
+        } else if (pFx === 'T') {
+            badgeBg = '#0026CA';
+            if (!blok) blokText = 'Blok Teknik Informatika (Tengah & Kanan)';
+        }
+        resultKursiBadge.style.background = badgeBg;
+        resultKursiBlok.textContent = blokText;
     } else {
-        resultKursi.style.display = 'none';
+        resultKursiBox.style.display = 'none';
     }
 
     resultMsg.textContent   = data.status === 'success' ? '✓ Kehadiran berhasil dicatat' : data.message;
@@ -551,7 +588,7 @@ function showResult(data, code) {
     else                                beepError();
 
     clearTimeout(resultTimer);
-    resultTimer = setTimeout(() => { resultCard.style.display = 'none'; }, 5000);
+    resultTimer = setTimeout(() => { resultCard.style.display = 'none'; }, 8000);
 }
 
 function addHistory(data, code) {
@@ -622,7 +659,7 @@ async function loadHistoryFromServer() {
                         <div style="font-size:13px;font-weight:600;color:var(--color-gray-900);
                                     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(item.peserta_nama || item.peserta_nim || 'Scan Code')}</div>
                         <div style="font-size:11px;color:var(--color-gray-500);">
-                            ${esc(item.peserta_nim || '-')}${item.peserta_prodi ? ' · '+esc(item.peserta_prodi) : ''} · Panitia: ${esc(item.panitia_name || 'Panitia')}</div>
+                            ${esc(item.peserta_nim || '-')}${item.peserta_prodi ? ' · '+esc(item.peserta_prodi) : ''}${item.peserta_kursi && item.peserta_kursi !== '-' ? ' · 🪑 <span style="font-weight:700;color:var(--color-primary);background:var(--color-primary-light);padding:1px 6px;border-radius:4px;">'+esc(item.peserta_kursi)+'</span>' : ''}</div>
                     </div>
                     <div style="text-align:right;flex-shrink:0;">
                         <div style="font-size:11px;font-weight:600;color:${s.dot};">${s.label}</div>
